@@ -43,6 +43,7 @@ const uploadSample = async (page, name = 'portrait.png') => {
     buffer: samplePng
   });
   await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+  await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() !== 'Analyzing photo...');
 };
 
 const run = async () => {

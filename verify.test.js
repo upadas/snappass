@@ -11,10 +11,34 @@ test('page contains the approved SnapPass product shell', () => {
   assert.match(html, /SnapPass/);
   assert.match(html, /Passport photos that pass the first time/);
   assert.match(html, /Passport photos in a snap\./);
+  assert.match(html, /class="brand-tagline">Passport photos in a snap\./);
   assert.match(html, /id="country"/);
   assert.match(html, /id="documentType"/);
   assert.match(html, /id="photoInput"/);
   assert.match(html, /id="exportPanel"/);
+});
+
+test('brand includes logo assets and favicon links', () => {
+  const html = read('index.html');
+  const logo = read('assets/logo.svg');
+  const favicon = read('assets/favicon.svg');
+
+  assert.match(html, /rel="icon"/);
+  assert.match(html, /href="assets\/favicon\.svg"/);
+  assert.match(html, /src="assets\/logo\.svg"/);
+  assert.match(logo, /SnapPass logo/);
+  assert.match(logo, /passport/i);
+  assert.match(favicon, /SnapPass favicon/);
+});
+
+test('site positioning is free with minimal ad support', () => {
+  const html = read('index.html');
+  const css = read('styles.css');
+
+  assert.match(html, /Free to use/);
+  assert.match(html, /Ad-supported/);
+  assert.match(html, /class="ad-slot"/);
+  assert.match(css, /\.ad-slot/);
 });
 
 test('stylesheet defines the approved visual system and responsive layout', () => {

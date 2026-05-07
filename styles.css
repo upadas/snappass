@@ -62,19 +62,35 @@ a {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   font-weight: 850;
   letter-spacing: 0;
 }
 
-.brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  background:
-    linear-gradient(135deg, #50bb91 0%, var(--color-primary) 64%),
-    var(--color-primary);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+.brand-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  box-shadow: 0 10px 22px rgba(16, 37, 31, 0.15);
+}
+
+.brand-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.brand-name {
+  color: var(--color-ink);
+  font-size: 1.05rem;
+}
+
+.brand-tagline {
+  color: var(--color-primary-dark);
+  font-size: 0.74rem;
+  font-weight: 780;
 }
 
 .nav-links {
@@ -273,6 +289,36 @@ h1 {
   margin-right: 7px;
   color: var(--color-primary);
   font-weight: 900;
+}
+
+.ad-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 610px;
+  min-height: 58px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px dashed #bcd3ca;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--color-muted);
+}
+
+.ad-slot span {
+  flex: 0 0 auto;
+  color: var(--color-primary-dark);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ad-slot p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .preview-card {
@@ -765,6 +811,10 @@ h1 {
     display: none;
   }
 
+  .brand-tagline {
+    font-size: 0.68rem;
+  }
+
   .hero {
     padding-top: 28px;
   }
@@ -783,6 +833,15 @@ h1 {
 
   .button {
     flex: 1 1 150px;
+  }
+
+  .ad-slot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ad-slot p {
+    text-align: left;
   }
 
   .photo-stage {

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">SnapPass logo</title>
+  <desc id="desc">A passport page with a camera lens and approval check mark.</desc>
+  <rect width="160" height="160" rx="34" fill="#10251f"/>
+  <path d="M49 30h49l23 23v77a10 10 0 0 1-10 10H49a10 10 0 0 1-10-10V40a10 10 0 0 1 10-10z" fill="#f8fffb"/>
+  <path d="M98 31v23h23" fill="#dff2e8"/>
+  <path d="M56 106h48" stroke="#b7d8cb" stroke-width="8" stroke-linecap="round"/>
+  <path d="M61 122h38" stroke="#d5e4dd" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="80" cy="73" r="29" fill="#167f63"/>
+  <circle cx="80" cy="73" r="18" fill="#f8fffb"/>
+  <circle cx="80" cy="73" r="9" fill="#167f63"/>
+  <path d="M62 74l12 12 27-30" fill="none" stroke="#f2b84b" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

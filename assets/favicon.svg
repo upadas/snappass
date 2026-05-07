@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">SnapPass favicon</title>
+  <desc id="desc">SnapPass passport photo favicon.</desc>
+  <rect width="64" height="64" rx="14" fill="#10251f"/>
+  <path d="M20 10h20l10 10v34a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4z" fill="#f8fffb"/>
+  <path d="M40 11v10h10" fill="#dff2e8"/>
+  <circle cx="32" cy="31" r="12" fill="#167f63"/>
+  <circle cx="32" cy="31" r="6" fill="#f8fffb"/>
+  <path d="M24 32l5 5 12-14" fill="none" stroke="#f2b84b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
