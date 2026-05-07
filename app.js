@@ -21,11 +21,18 @@ const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
 const downloadPrintButton = document.querySelector('#downloadPrintButton');
 const backgroundMode = document.querySelector('#backgroundMode');
 const backgroundNote = document.querySelector('#backgroundNote');
+const applySuggestionButton = document.querySelector('#applySuggestionButton');
 
 let currentImageFile = null;
+let currentPhotoDataUrl = '';
+let backgroundResultDataUrl = '';
 let selectedBackgroundMode = 'keep-original';
+let analysisRequestId = 0;
+let backgroundRequestId = 0;
 let currentAiFindings = {
-  hasHeadIssue: false
+  hasHeadIssue: false,
+  recommendedZoom: 100,
+  recommendedRotation: 0
 };
 
 const requirementCopy = {
@@ -91,6 +98,13 @@ const setAiCheck = (name, state, message) => {
   messageNode.textContent = message;
 };
 
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.addEventListener('load', () => resolve(reader.result));
+  reader.addEventListener('error', reject);
+  reader.readAsDataURL(file);
+});
+
 const runAiAssessment = (file) => {
   const name = file.name.toLowerCase();
   const isLikelyNotHuman = /object|pet|car|logo|document|landscape|room|food/.test(name);
@@ -98,7 +112,12 @@ const runAiAssessment = (file) => {
   const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
   const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
 
-  currentAiFindings = { hasHeadIssue };
+  currentAiFindings = {
+    hasHeadIssue,
+    recommendedZoom: 100,
+    recommendedRotation: 0
+  };
+  applySuggestionButton.hidden = false;
   humanWarning.hidden = !isLikelyNotHuman;
   aiStatus.textContent = isLikelyNotHuman ? 'Retake needed' : 'AI preview';
   aiStatus.classList.toggle('is-warning', isLikelyNotHuman || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
@@ -133,10 +152,95 @@ const runAiAssessment = (file) => {
   );
 };
 
+const applyAiFindings = (analysis) => {
+  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
+  const hasHumanWarning = analysis.isHuman === false;
+  const hasLightingIssue = analysis.lighting === 'warning';
+  const hasHeadIssue = analysis.headCentered === 'warning';
+  const hasBackgroundIssue = analysis.background === 'warning';
+
+  currentAiFindings = {
+    hasHeadIssue,
+    recommendedZoom: Number(analysis.recommendedZoom || 100),
+    recommendedRotation: Number(analysis.recommendedRotation || 0)
+  };
+
+  humanWarning.hidden = !hasHumanWarning;
+  humanWarning.textContent = warnings[0] || 'Warning: upload a front-facing photo of one person.';
+  aiStatus.textContent = hasHumanWarning ? 'Retake needed' : 'AI preview';
+  aiStatus.classList.toggle('is-warning', hasHumanWarning || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
+  applySuggestionButton.hidden = false;
+
+  setAiCheck(
+    'human',
+    hasHumanWarning ? 'warning' : 'pass',
+    analysis.checks?.human || (hasHumanWarning
+      ? 'No clear human passport-style portrait detected.'
+      : 'Looks like a single front-facing portrait.')
+  );
+  setAiCheck(
+    'lighting',
+    hasLightingIssue ? 'warning' : 'pass',
+    analysis.checks?.lighting || (hasLightingIssue
+      ? 'Lighting may be uneven. Retake in soft front light.'
+      : 'Lighting appears even enough for preview.')
+  );
+  setAiCheck(
+    'head',
+    hasHeadIssue ? 'warning' : 'pass',
+    analysis.checks?.head || (hasHeadIssue
+      ? 'Head may be outside the recommended passport guide.'
+      : 'Head appears centered inside the guide.')
+  );
+  setAiCheck(
+    'background',
+    hasBackgroundIssue ? 'warning' : 'pass',
+    analysis.checks?.background || (hasBackgroundIssue
+      ? 'Background may need white replacement or cleanup.'
+      : 'Background appears plain for preview.')
+  );
+
+  evaluateCropFit();
+};
+
+const requestPhotoAnalysis = async (file) => {
+  if (!currentPhotoDataUrl) {
+    return;
+  }
+
+  const requestId = ++analysisRequestId;
+  aiStatus.textContent = 'Analyzing photo...';
+  aiStatus.classList.remove('is-warning');
+
+  try {
+    const response = await fetch('/api/photo/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageDataUrl: currentPhotoDataUrl,
+        filename: file.name,
+        country: country.value,
+        documentType: documentType.value
+      })
+    });
+    const analysis = await response.json();
+    if (requestId !== analysisRequestId || !currentImageFile) {
+      return;
+    }
+    applyAiFindings(analysis);
+  } catch {
+    if (requestId !== analysisRequestId || !currentImageFile) {
+      return;
+    }
+    runAiAssessment(file);
+  }
+};
+
 const resetAiAssessment = () => {
   aiStatus.textContent = 'Waiting for photo';
   aiStatus.classList.remove('is-warning');
   humanWarning.hidden = true;
+  applySuggestionButton.hidden = true;
   setAiCheck('human', 'pending', 'Upload a face photo to check.');
   setAiCheck('lighting', 'pending', 'Checks for underexposure, glare, and hard shadows.');
   setAiCheck('head', 'pending', 'Checks whether the face sits inside the passport guide.');
@@ -158,8 +262,57 @@ const updatePreviewTransform = () => {
   evaluateCropFit();
 };
 
+const requestBackgroundEdit = async () => {
+  if (!currentImageFile || !currentPhotoDataUrl || selectedBackgroundMode === 'keep-original') {
+    return;
+  }
+
+  const requestId = ++backgroundRequestId;
+  backgroundNote.textContent = selectedBackgroundMode === 'ai-cleanup'
+    ? 'Cleaning background while preserving facial features...'
+    : 'Replacing background with white...';
+
+  try {
+    const response = await fetch('/api/photo/background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageDataUrl: currentPhotoDataUrl,
+        mode: selectedBackgroundMode
+      })
+    });
+    const result = await response.json();
+    if (requestId !== backgroundRequestId || !currentImageFile || backgroundMode.value !== selectedBackgroundMode) {
+      return;
+    }
+
+    backgroundResultDataUrl = result.imageDataUrl || '';
+    if (backgroundResultDataUrl) {
+      photoPreview.src = backgroundResultDataUrl;
+      photoFrame.classList.remove('subject-mask');
+      backgroundNote.textContent = result.message || 'AI background cleanup applied.';
+      return;
+    }
+
+    photoFrame.classList.add('subject-mask');
+    backgroundNote.textContent = result.message || 'Using server fallback mask.';
+  } catch {
+    if (requestId !== backgroundRequestId || !currentImageFile) {
+      return;
+    }
+    backgroundResultDataUrl = '';
+    photoFrame.classList.add('subject-mask');
+    backgroundNote.textContent = 'Using server fallback mask because AI cleanup is unavailable.';
+  }
+};
+
 const applyBackgroundMode = () => {
   selectedBackgroundMode = backgroundMode.value;
+  backgroundRequestId += 1;
+  backgroundResultDataUrl = '';
+  if (currentPhotoDataUrl) {
+    photoPreview.src = currentPhotoDataUrl;
+  }
   photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
   photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
   photoFrame.classList.toggle('subject-mask', selectedBackgroundMode !== 'keep-original');
@@ -186,6 +339,7 @@ const applyBackgroundMode = () => {
   setAiCheck('background', 'pass', selectedBackgroundMode === 'ai-cleanup'
     ? 'AI cleanup preview removes background clutter while preserving facial features.'
     : 'Background will export as white.');
+  requestBackgroundEdit();
 };
 
 const evaluateCropFit = () => {
@@ -228,8 +382,10 @@ const evaluateCropFit = () => {
   setAiCheck('head', 'pass', 'Head appears centered inside the guide.');
 };
 
-const showLoadedState = (file) => {
+const showLoadedState = async (file) => {
   currentImageFile = file;
+  currentPhotoDataUrl = '';
+  backgroundResultDataUrl = '';
   photoPreview.src = URL.createObjectURL(file);
   photoPreview.alt = `Preview of ${file.name}`;
   photoFrame.classList.add('has-photo');
@@ -242,18 +398,37 @@ const showLoadedState = (file) => {
   runAiAssessment(file);
   applyBackgroundMode();
   updatePreviewTransform();
+
+  try {
+    currentPhotoDataUrl = await readFileAsDataUrl(file);
+    if (currentImageFile !== file) {
+      return;
+    }
+    photoPreview.src = currentPhotoDataUrl;
+    applyBackgroundMode();
+    await requestPhotoAnalysis(file);
+  } catch {
+    runAiAssessment(file);
+  }
 };
 
 const resetState = () => {
   currentImageFile = null;
+  currentPhotoDataUrl = '';
+  backgroundResultDataUrl = '';
   selectedBackgroundMode = 'keep-original';
+  analysisRequestId += 1;
+  backgroundRequestId += 1;
   currentAiFindings = {
-    hasHeadIssue: false
+    hasHeadIssue: false,
+    recommendedZoom: 100,
+    recommendedRotation: 0
   };
   photoInput.value = '';
   photoPreview.removeAttribute('src');
   photoPreview.alt = '';
   photoFrame.classList.remove('has-photo');
+  photoFrame.classList.remove('background-white', 'background-soft-white', 'subject-mask');
   adjustmentPanel.hidden = true;
   exportPanel.hidden = true;
   zoomRange.value = '100';
@@ -298,7 +473,7 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   fillCanvasBackground(context, canvas);
 
   context.save();
-  const shouldMaskSubject = selectedBackgroundMode !== 'keep-original';
+  const shouldMaskSubject = selectedBackgroundMode !== 'keep-original' && !backgroundResultDataUrl;
   if (shouldMaskSubject) {
     context.beginPath();
     context.ellipse(
@@ -408,6 +583,12 @@ photoInput.addEventListener('change', (event) => {
 zoomRange.addEventListener('input', updatePreviewTransform);
 rotateRange.addEventListener('input', updatePreviewTransform);
 backgroundMode.addEventListener('change', applyBackgroundMode);
+
+applySuggestionButton.addEventListener('click', () => {
+  zoomRange.value = String(Math.min(140, Math.max(80, currentAiFindings.recommendedZoom || 100)));
+  rotateRange.value = String(Math.min(8, Math.max(-8, currentAiFindings.recommendedRotation || 0)));
+  updatePreviewTransform();
+});
 
 resetButton.addEventListener('click', resetState);
 downloadDigitalButton.addEventListener('click', downloadDigitalPhoto);

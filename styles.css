@@ -641,6 +641,23 @@ h1 {
   color: var(--color-primary-dark);
 }
 
+.suggestion-button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border: 1px solid #c8ddd3;
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+  font-weight: 820;
+}
+
+.suggestion-button:hover {
+  border-color: var(--color-primary);
+  background: #f4fbf7;
+}
+
 .export-panel h3 {
   margin: 0 0 10px;
   font-size: 1rem;

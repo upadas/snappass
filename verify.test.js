@@ -86,8 +86,44 @@ test('prototype includes AI assessment checks for human subject, lighting, and h
   assert.match(html, /Background/);
   assert.match(html, /id="humanWarning"/);
   assert.match(js, /runAiAssessment/);
+  assert.match(js, /requestPhotoAnalysis/);
+  assert.match(js, /applyAiFindings/);
   assert.match(js, /humanWarning\.hidden\s*=\s*!isLikelyNotHuman/);
   assert.match(js, /isLikelyNotHuman/);
+});
+
+test('server exposes private AI photo agent endpoints', () => {
+  const server = read('server.js');
+
+  assert.match(server, /OPENAI_API_KEY/);
+  assert.match(server, /\/api\/photo\/analyze/);
+  assert.match(server, /\/api\/photo\/background/);
+  assert.match(server, /responses/);
+  assert.match(server, /images\/edits/);
+  assert.match(server, /do not change facial features/i);
+});
+
+test('browser keeps the OpenAI key on the server and requests agent help in the background', () => {
+  const js = read('app.js');
+  const html = read('index.html');
+
+  assert.doesNotMatch(js, /OPENAI_API_KEY/);
+  assert.match(js, /fetch\('\/api\/photo\/analyze'/);
+  assert.match(js, /fetch\('\/api\/photo\/background'/);
+  assert.match(js, /applySuggestionButton/);
+  assert.match(js, /backgroundResultDataUrl/);
+  assert.match(html, /id="applySuggestionButton"/);
+});
+
+test('deployment docs explain AI environment variables', () => {
+  const readme = read('README.md');
+  const envExample = read('.env.example');
+
+  assert.match(readme, /OPENAI_API_KEY/);
+  assert.match(readme, /OPENAI_MODEL/);
+  assert.match(readme, /server-side/i);
+  assert.match(envExample, /OPENAI_API_KEY=/);
+  assert.match(envExample, /OPENAI_MODEL=/);
 });
 
 test('deployment package supports Render, Railway, and Vercel', () => {

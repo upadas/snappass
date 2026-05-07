@@ -4,6 +4,10 @@ const path = require('node:path');
 
 const port = Number(process.env.PORT || 3000);
 const root = __dirname;
+const openAiApiKey = process.env.OPENAI_API_KEY || '';
+const openAiModel = process.env.OPENAI_MODEL || 'gpt-5.5';
+const openAiImageModel = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+const maxJsonBytes = 12 * 1024 * 1024;
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -26,6 +30,236 @@ const send = (response, status, body, contentType = 'text/plain; charset=utf-8')
   response.end(body);
 };
 
+const sendJson = (response, status, data) => {
+  response.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
+  response.end(JSON.stringify(data));
+};
+
+const readJsonBody = (request) => new Promise((resolve, reject) => {
+  let body = '';
+
+  request.on('data', (chunk) => {
+    body += chunk;
+    if (body.length > maxJsonBytes) {
+      reject(new Error('Payload too large'));
+      request.destroy();
+    }
+  });
+
+  request.on('end', () => {
+    try {
+      resolve(body ? JSON.parse(body) : {});
+    } catch {
+      reject(new Error('Invalid JSON'));
+    }
+  });
+
+  request.on('error', reject);
+});
+
+const fallbackAnalysis = ({ filename = '' } = {}) => {
+  const name = filename.toLowerCase();
+  const isLikelyNotHuman = /object|pet|car|logo|document|landscape|room|food/.test(name);
+  const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name);
+  const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
+  const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
+
+  return {
+    mode: 'server fallback',
+    isHuman: !isLikelyNotHuman,
+    lighting: hasLightingIssue ? 'warning' : 'pass',
+    headCentered: hasHeadIssue ? 'warning' : 'pass',
+    background: hasBackgroundIssue ? 'warning' : 'pass',
+    recommendedZoom: 100,
+    recommendedRotation: 0,
+    warnings: [
+      isLikelyNotHuman ? 'No clear human passport portrait detected.' : null,
+      hasLightingIssue ? 'Lighting may be uneven. Retake in soft front light.' : null,
+      hasHeadIssue ? 'Head may be off center. Apply the suggested crop or retake straight-on.' : null,
+      hasBackgroundIssue ? 'Background may contain clutter. Use white replacement or AI cleanup.' : null
+    ].filter(Boolean),
+    checks: {
+      human: isLikelyNotHuman
+        ? 'No clear human portrait detected in fallback checks.'
+        : 'Looks like a single front-facing portrait.',
+      lighting: hasLightingIssue
+        ? 'Lighting may be uneven. Retake in soft front light with no shadows.'
+        : 'Lighting appears even enough for preview.',
+      head: hasHeadIssue
+        ? 'Head may be tilted or off center. Use zoom/rotate or retake straight-on.'
+        : 'Head appears centered inside the guide.',
+      background: hasBackgroundIssue
+        ? 'Background may contain objects or texture. Use cleanup or a plain wall.'
+        : 'Background appears plain for preview.'
+    }
+  };
+};
+
+const getOutputText = (data) => {
+  if (typeof data.output_text === 'string') {
+    return data.output_text;
+  }
+
+  const message = data.output?.find((item) => item.type === 'message');
+  const textPart = message?.content?.find((item) => item.type === 'output_text');
+  return textPart?.text || '';
+};
+
+const parseJsonOutput = (text) => {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return JSON.parse(fenced ? fenced[1] : trimmed);
+};
+
+const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${openAiApiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: openAiModel,
+      input: [
+        {
+          role: 'system',
+          content: [
+            {
+              type: 'input_text',
+              text: 'You are a passport photo compliance agent. Inspect the image only for photo quality and official-document fit. Do not identify the person.'
+            }
+          ]
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: [
+                `Document target: ${country || 'us'} ${documentType || 'passport'}.`,
+                'Return strict JSON with keys: isHuman boolean, lighting pass|warning, headCentered pass|warning, background pass|warning, recommendedZoom number 80-140, recommendedRotation number -8 to 8, warnings string[], checks object with human lighting head background strings.',
+                'Check whether the subject is human, front-facing, evenly lit, centered, and on an acceptable plain white or off-white passport background.'
+              ].join(' ')
+            },
+            {
+              type: 'input_image',
+              image_url: imageDataUrl
+            }
+          ]
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI analysis failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const outputText = getOutputText(data);
+  return parseJsonOutput(outputText);
+};
+
+const dataUrlToBlob = async (dataUrl) => {
+  const [header, encoded] = dataUrl.split(',');
+  const mime = header.match(/data:(.*?);base64/)?.[1] || 'image/png';
+  const bytes = Buffer.from(encoded || '', 'base64');
+  return new Blob([bytes], { type: mime });
+};
+
+const editBackgroundWithOpenAi = async ({ imageDataUrl, mode }) => {
+  const form = new FormData();
+  const imageBlob = await dataUrlToBlob(imageDataUrl);
+  form.append('model', openAiImageModel);
+  form.append('image', imageBlob, 'passport-source.png');
+  form.append('size', '1024x1024');
+  form.append('prompt', [
+    mode === 'ai-cleanup'
+      ? 'Remove background objects and replace the backdrop with a smooth plain white or off-white passport-photo background.'
+      : 'Replace the full background with clean pure white for a passport photo.',
+    'Do not change facial features, identity, skin texture, hairline, expression, head shape, clothing, pose, or facial geometry.'
+  ].join(' '));
+
+  const response = await fetch('https://api.openai.com/v1/images/edits', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${openAiApiKey}`
+    },
+    body: form
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI background edit failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const b64 = data.data?.[0]?.b64_json;
+  if (!b64) {
+    throw new Error('OpenAI background edit did not return image data');
+  }
+
+  return `data:image/png;base64,${b64}`;
+};
+
+const handleAnalyze = async (request, response) => {
+  try {
+    const body = await readJsonBody(request);
+    if (!body.imageDataUrl) {
+      sendJson(response, 400, { error: 'imageDataUrl is required' });
+      return;
+    }
+
+    if (!openAiApiKey) {
+      sendJson(response, 200, fallbackAnalysis(body));
+      return;
+    }
+
+    const analysis = await analyzeWithOpenAi(body);
+    sendJson(response, 200, { mode: 'openai', ...fallbackAnalysis(body), ...analysis });
+  } catch (error) {
+    sendJson(response, 200, {
+      ...fallbackAnalysis({}),
+      mode: 'server fallback',
+      warnings: [`AI analysis unavailable: ${error.message}`]
+    });
+  }
+};
+
+const handleBackground = async (request, response) => {
+  try {
+    const body = await readJsonBody(request);
+    if (!body.imageDataUrl) {
+      sendJson(response, 400, { error: 'imageDataUrl is required' });
+      return;
+    }
+
+    if (!openAiApiKey) {
+      sendJson(response, 200, {
+        mode: 'server fallback',
+        imageDataUrl: null,
+        message: 'Using server fallback mask. Set OPENAI_API_KEY to run real background cleanup.'
+      });
+      return;
+    }
+
+    const imageDataUrl = await editBackgroundWithOpenAi(body);
+    sendJson(response, 200, {
+      mode: 'openai',
+      imageDataUrl,
+      message: 'AI background cleanup applied without intentional facial changes.'
+    });
+  } catch (error) {
+    sendJson(response, 200, {
+      mode: 'server fallback',
+      imageDataUrl: null,
+      message: `Using server fallback mask because AI cleanup failed: ${error.message}`
+    });
+  }
+};
+
 const resolvePath = (urlPath) => {
   const cleanPath = decodeURIComponent(urlPath.split('?')[0]);
   const requested = cleanPath === '/' ? '/index.html' : cleanPath;
@@ -38,7 +272,17 @@ const resolvePath = (urlPath) => {
   return filePath;
 };
 
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
+  if (request.method === 'POST' && request.url === '/api/photo/analyze') {
+    await handleAnalyze(request, response);
+    return;
+  }
+
+  if (request.method === 'POST' && request.url === '/api/photo/background') {
+    await handleBackground(request, response);
+    return;
+  }
+
   const filePath = resolvePath(request.url || '/');
 
   if (!filePath) {
