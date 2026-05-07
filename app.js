@@ -14,6 +14,9 @@ const zoomValue = document.querySelector('#zoomValue');
 const rotateValue = document.querySelector('#rotateValue');
 const resetButton = document.querySelector('#resetButton');
 const cameraButton = document.querySelector('#cameraButton');
+const aiStatus = document.querySelector('#aiStatus');
+const humanWarning = document.querySelector('#humanWarning');
+const aiAssessment = document.querySelector('#aiAssessment');
 
 const requirementCopy = {
   us: {
@@ -58,6 +61,66 @@ const setChecklist = (state) => {
   });
 };
 
+const setAiCheck = (name, state, message) => {
+  const item = aiAssessment.querySelector(`[data-ai-check="${name}"]`);
+  const messageNode = item.querySelector('span');
+
+  item.classList.remove('is-pending', 'is-pass', 'is-warning');
+  item.classList.add(`is-${state}`);
+  messageNode.textContent = message;
+};
+
+const runAiAssessment = (file) => {
+  const name = file.name.toLowerCase();
+  const isLikelyNotHuman = /object|pet|car|logo|document|landscape|room|food/.test(name);
+  const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name);
+  const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
+  const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
+
+  humanWarning.hidden = !isLikelyNotHuman;
+  aiStatus.textContent = isLikelyNotHuman ? 'Retake needed' : 'AI preview';
+  aiStatus.classList.toggle('is-warning', isLikelyNotHuman || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
+
+  setAiCheck(
+    'human',
+    isLikelyNotHuman ? 'warning' : 'pass',
+    isLikelyNotHuman
+      ? 'No clear human portrait detected in this prototype state.'
+      : 'Looks like a single front-facing portrait.'
+  );
+  setAiCheck(
+    'lighting',
+    hasLightingIssue ? 'warning' : 'pass',
+    hasLightingIssue
+      ? 'Lighting may be uneven. Retake in soft front light with no shadows.'
+      : 'Lighting appears even enough for preview.'
+  );
+  setAiCheck(
+    'head',
+    hasHeadIssue ? 'warning' : 'pass',
+    hasHeadIssue
+      ? 'Head may be tilted or off center. Use zoom/rotate or retake straight-on.'
+      : 'Head appears centered inside the guide.'
+  );
+  setAiCheck(
+    'background',
+    hasBackgroundIssue ? 'warning' : 'pass',
+    hasBackgroundIssue
+      ? 'Background may contain objects or texture. Use a plain white/off-white wall.'
+      : 'Background appears plain for preview.'
+  );
+};
+
+const resetAiAssessment = () => {
+  aiStatus.textContent = 'Waiting for photo';
+  aiStatus.classList.remove('is-warning');
+  humanWarning.hidden = true;
+  setAiCheck('human', 'pending', 'Upload a face photo to check.');
+  setAiCheck('lighting', 'pending', 'Checks for underexposure, glare, and hard shadows.');
+  setAiCheck('head', 'pending', 'Checks whether the face sits inside the passport guide.');
+  setAiCheck('background', 'pending', 'Checks for a plain white or off-white background.');
+};
+
 const updateRequirementSummary = () => {
   const copy = requirementCopy[country.value][documentType.value];
   requirementSummary.textContent = copy;
@@ -81,6 +144,7 @@ const showLoadedState = (file) => {
   statusPill.textContent = 'Review lighting';
   statusPill.classList.add('is-warning');
   setChecklist('loaded');
+  runAiAssessment(file);
   updatePreviewTransform();
 };
 
@@ -96,6 +160,7 @@ const resetState = () => {
   statusPill.textContent = 'Ready';
   statusPill.classList.remove('is-warning');
   setChecklist('ready');
+  resetAiAssessment();
   updatePreviewTransform();
 };
 

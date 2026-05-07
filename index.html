@@ -90,11 +90,42 @@
               </div>
 
               <div class="checklist" id="checklist" aria-label="Requirement checklist">
+                <div class="check-item is-pending" data-check="human"><span></span>Human subject</div>
                 <div class="check-item is-pending" data-check="size"><span></span>Size: 2 x 2 inches</div>
                 <div class="check-item is-pending" data-check="background"><span></span>Background: plain white</div>
                 <div class="check-item is-pending" data-check="head"><span></span>Head centered</div>
                 <div class="check-item is-pending" data-check="lighting"><span></span>Lighting review</div>
               </div>
+            </div>
+
+            <div class="ai-assessment" id="aiAssessment" aria-live="polite">
+              <div class="ai-header">
+                <div>
+                  <p class="section-kicker">AI photo advisor</p>
+                  <h3>Photo quality checks</h3>
+                </div>
+                <span class="mini-pill" id="aiStatus">Waiting for photo</span>
+              </div>
+              <p class="human-warning" id="humanWarning" hidden>Warning: this does not appear to be a human passport-style portrait. Upload a front-facing photo of one person.</p>
+              <div class="ai-grid">
+                <div class="ai-check is-pending" data-ai-check="human">
+                  <strong>Human subject</strong>
+                  <span>Upload a face photo to check.</span>
+                </div>
+                <div class="ai-check is-pending" data-ai-check="lighting">
+                  <strong>Lighting</strong>
+                  <span>Checks for underexposure, glare, and hard shadows.</span>
+                </div>
+                <div class="ai-check is-pending" data-ai-check="head">
+                  <strong>Head centered</strong>
+                  <span>Checks whether the face sits inside the passport guide.</span>
+                </div>
+                <div class="ai-check is-pending" data-ai-check="background">
+                  <strong>Background</strong>
+                  <span>Checks for a plain white or off-white background.</span>
+                </div>
+              </div>
+              <p class="ai-note">Prototype mode: this simulates AI guidance. Production should use computer vision without changing facial features.</p>
             </div>
 
             <div class="adjustment-panel" id="adjustmentPanel" hidden>

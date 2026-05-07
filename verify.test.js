@@ -33,6 +33,21 @@ test('script wires upload preview and export state behavior', () => {
   assert.match(js, /resetButton\.addEventListener\('click'/);
 });
 
+test('prototype includes AI assessment checks for human subject, lighting, and head position', () => {
+  const html = read('index.html');
+  const js = read('app.js');
+
+  assert.match(html, /id="aiAssessment"/);
+  assert.match(html, /Human subject/);
+  assert.match(html, /Lighting/);
+  assert.match(html, /Head centered/);
+  assert.match(html, /Background/);
+  assert.match(html, /id="humanWarning"/);
+  assert.match(js, /runAiAssessment/);
+  assert.match(js, /humanWarning\.hidden\s*=\s*!isLikelyNotHuman/);
+  assert.match(js, /isLikelyNotHuman/);
+});
+
 test('deployment package supports Render, Railway, and Vercel', () => {
   const packageJson = JSON.parse(read('package.json'));
   const server = read('server.js');
