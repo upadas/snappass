@@ -129,6 +129,15 @@
             </div>
 
             <div class="adjustment-panel" id="adjustmentPanel" hidden>
+              <label class="background-control" for="backgroundMode">
+                <span>Background</span>
+                <select id="backgroundMode" name="backgroundMode">
+                  <option value="keep-original" selected>Keep original</option>
+                  <option value="replace-white">Replace with white</option>
+                  <option value="ai-cleanup">AI cleanup preview</option>
+                </select>
+              </label>
+              <p class="background-note" id="backgroundNote">Use a plain white or off-white background for most passport photos.</p>
               <div class="range-row">
                 <label for="zoomRange">Zoom <strong id="zoomValue">100%</strong></label>
                 <input id="zoomRange" type="range" min="80" max="140" value="100">

@@ -55,6 +55,22 @@ test('zoom and rotation update crop fit warnings', () => {
   assert.match(js, /rotateRange\.addEventListener\('input', updatePreviewTransform\)/);
 });
 
+test('background replacement controls are available and affect exports', () => {
+  const html = read('index.html');
+  const js = read('app.js');
+  const playwrightTest = read('playwright.test.js');
+
+  assert.match(html, /id="backgroundMode"/);
+  assert.match(html, /Replace with white/);
+  assert.match(html, /AI cleanup preview/);
+  assert.match(js, /backgroundMode\.addEventListener\('change'/);
+  assert.match(js, /applyBackgroundMode/);
+  assert.match(js, /selectedBackgroundMode/);
+  assert.match(js, /fillCanvasBackground/);
+  assert.match(playwrightTest, /backgroundMode/);
+  assert.match(playwrightTest, /replace-white/);
+});
+
 test('prototype includes AI assessment checks for human subject, lighting, and head position', () => {
   const html = read('index.html');
   const js = read('app.js');

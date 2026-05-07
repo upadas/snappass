@@ -358,6 +358,14 @@ h1 {
   opacity: 1;
 }
 
+.photo-frame.background-white {
+  background: #fff;
+}
+
+.photo-frame.background-soft-white {
+  background: #fbfaf4;
+}
+
 .photo-frame.has-photo .face-placeholder {
   display: none;
 }
@@ -575,6 +583,36 @@ h1 {
   display: grid;
   gap: 8px;
   margin-bottom: 13px;
+}
+
+.background-control {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.background-control span {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 760;
+}
+
+.background-control select {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid #c8ddd3;
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--color-ink);
+  padding: 0 12px;
+  font-weight: 760;
+}
+
+.background-note {
+  margin: 0 0 13px;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .range-row label {

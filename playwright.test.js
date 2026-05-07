@@ -44,6 +44,16 @@ const run = async () => {
     assert.equal(uploaded.status, 'Preview ready');
     assert.equal(uploaded.hasPhoto, true);
 
+    await page.selectOption('#backgroundMode', 'replace-white');
+    const backgroundState = await page.evaluate(() => ({
+      mode: document.querySelector('#backgroundMode').value,
+      whitePreview: document.querySelector('#photoFrame').classList.contains('background-white'),
+      backgroundText: document.querySelector('[data-check="background"]').textContent.trim()
+    }));
+    assert.equal(backgroundState.mode, 'replace-white');
+    assert.equal(backgroundState.whitePreview, true);
+    assert.equal(backgroundState.backgroundText, 'Background: plain white');
+
     await page.locator('#zoomRange').evaluate((element) => {
       element.value = '80';
       element.dispatchEvent(new Event('input', { bubbles: true }));

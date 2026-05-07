@@ -19,8 +19,11 @@ const humanWarning = document.querySelector('#humanWarning');
 const aiAssessment = document.querySelector('#aiAssessment');
 const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
 const downloadPrintButton = document.querySelector('#downloadPrintButton');
+const backgroundMode = document.querySelector('#backgroundMode');
+const backgroundNote = document.querySelector('#backgroundNote');
 
 let currentImageFile = null;
+let selectedBackgroundMode = 'keep-original';
 let currentAiFindings = {
   hasHeadIssue: false
 };
@@ -155,6 +158,35 @@ const updatePreviewTransform = () => {
   evaluateCropFit();
 };
 
+const applyBackgroundMode = () => {
+  selectedBackgroundMode = backgroundMode.value;
+  photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
+  photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
+
+  const backgroundMessages = {
+    'keep-original': 'Use a plain white or off-white background for most passport photos.',
+    'replace-white': 'Preview replaces the backdrop with white while preserving the face area.',
+    'ai-cleanup': 'AI cleanup preview would remove background objects without changing facial features.'
+  };
+
+  backgroundNote.textContent = backgroundMessages[selectedBackgroundMode];
+
+  if (!currentImageFile) {
+    return;
+  }
+
+  if (selectedBackgroundMode === 'keep-original') {
+    setChecklistItem('background', 'warning', 'Background needs review');
+    setAiCheck('background', 'warning', 'Original background is kept. Confirm it is plain white or off-white.');
+    return;
+  }
+
+  setChecklistItem('background', 'pass', 'Background: plain white');
+  setAiCheck('background', 'pass', selectedBackgroundMode === 'ai-cleanup'
+    ? 'AI cleanup preview removes background clutter while preserving facial features.'
+    : 'Background will export as white.');
+};
+
 const evaluateCropFit = () => {
   if (!currentImageFile) {
     return;
@@ -207,11 +239,13 @@ const showLoadedState = (file) => {
   statusPill.classList.remove('is-danger');
   setChecklist('loaded');
   runAiAssessment(file);
+  applyBackgroundMode();
   updatePreviewTransform();
 };
 
 const resetState = () => {
   currentImageFile = null;
+  selectedBackgroundMode = 'keep-original';
   currentAiFindings = {
     hasHeadIssue: false
   };
@@ -223,11 +257,18 @@ const resetState = () => {
   exportPanel.hidden = true;
   zoomRange.value = '100';
   rotateRange.value = '0';
+  backgroundMode.value = 'keep-original';
+  applyBackgroundMode();
   statusPill.textContent = 'Ready';
   statusPill.classList.remove('is-warning', 'is-danger');
   setChecklist('ready');
   resetAiAssessment();
   updatePreviewTransform();
+};
+
+const fillCanvasBackground = (context, canvas) => {
+  context.fillStyle = selectedBackgroundMode === 'ai-cleanup' ? '#fbfaf4' : '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
 };
 
 const drawPhotoToCanvas = (canvas, options = {}) => {
@@ -236,8 +277,7 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   const rotate = Number(rotateRange.value) * Math.PI / 180;
   const size = options.size || canvas.width;
 
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  fillCanvasBackground(context, canvas);
   context.save();
   context.translate(canvas.width / 2, canvas.height / 2);
   context.rotate(rotate);
@@ -328,6 +368,7 @@ photoInput.addEventListener('change', (event) => {
 
 zoomRange.addEventListener('input', updatePreviewTransform);
 rotateRange.addEventListener('input', updatePreviewTransform);
+backgroundMode.addEventListener('change', applyBackgroundMode);
 
 resetButton.addEventListener('click', resetState);
 downloadDigitalButton.addEventListener('click', downloadDigitalPhoto);
