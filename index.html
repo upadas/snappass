@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SnapPass.me - Passport Photo Maker</title>
+    <meta name="description" content="Create passport, visa, and ID photos with a calm upload-first workflow.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="SnapPass home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>SnapPass.me</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#requirements">Requirements</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#help">Help</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">US passport, visa, and ID photos</p>
+            <h1 id="hero-title">Passport photos that pass the first time.</h1>
+            <p class="hero-text">Choose your document, upload a photo, and get a correctly sized digital file or printable 4x6 sheet.</p>
+
+            <form class="wizard-card" aria-label="Photo setup">
+              <div class="field-grid">
+                <label class="field" for="country">
+                  <span>Country</span>
+                  <select id="country" name="country">
+                    <option value="us" selected>United States</option>
+                    <option value="ca">Canada</option>
+                    <option value="uk">United Kingdom</option>
+                    <option value="in">India</option>
+                  </select>
+                </label>
+
+                <label class="field" for="documentType">
+                  <span>Document</span>
+                  <select id="documentType" name="documentType">
+                    <option value="passport" selected>Passport photo</option>
+                    <option value="visa">Visa photo</option>
+                    <option value="id">ID card photo</option>
+                    <option value="baby">Baby passport photo</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="upload-actions">
+                <label class="button button-primary" for="photoInput">Upload photo</label>
+                <input id="photoInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp">
+                <button class="button button-secondary" type="button" id="cameraButton">Use camera</button>
+              </div>
+
+              <p class="form-note" id="requirementSummary">US passport photo: 2 x 2 inches, plain white background, centered face.</p>
+            </form>
+
+            <ul class="trust-list" aria-label="Trust notes">
+              <li>No account needed</li>
+              <li>Digital + print sheet</li>
+              <li>Privacy-first preview</li>
+            </ul>
+          </div>
+
+          <aside class="preview-card" aria-label="Live compliance preview">
+            <div class="preview-header">
+              <div>
+                <p class="section-kicker">Live compliance preview</p>
+                <h2>Preview check</h2>
+              </div>
+              <span class="status-pill" id="statusPill">Ready</span>
+            </div>
+
+            <div class="preview-layout">
+              <div class="photo-stage" id="photoStage">
+                <div class="photo-frame" id="photoFrame" aria-label="Photo preview">
+                  <img id="photoPreview" alt="">
+                  <div class="face-placeholder" aria-hidden="true">
+                    <span class="head"></span>
+                    <span class="shoulders"></span>
+                  </div>
+                  <span class="crop-guide" aria-hidden="true"></span>
+                </div>
+              </div>
+
+              <div class="checklist" id="checklist" aria-label="Requirement checklist">
+                <div class="check-item is-pending" data-check="size"><span></span>Size: 2 x 2 inches</div>
+                <div class="check-item is-pending" data-check="background"><span></span>Background: plain white</div>
+                <div class="check-item is-pending" data-check="head"><span></span>Head centered</div>
+                <div class="check-item is-pending" data-check="lighting"><span></span>Lighting review</div>
+              </div>
+            </div>
+
+            <div class="adjustment-panel" id="adjustmentPanel" hidden>
+              <div class="range-row">
+                <label for="zoomRange">Zoom <strong id="zoomValue">100%</strong></label>
+                <input id="zoomRange" type="range" min="80" max="140" value="100">
+              </div>
+              <div class="range-row">
+                <label for="rotateRange">Rotate <strong id="rotateValue">0°</strong></label>
+                <input id="rotateRange" type="range" min="-8" max="8" value="0">
+              </div>
+              <button class="text-button" id="resetButton" type="button">Start over</button>
+            </div>
+
+            <div class="export-panel" id="exportPanel" hidden>
+              <h3>Export options</h3>
+              <div class="export-grid">
+                <button type="button">Download digital photo</button>
+                <button type="button">Create printable 4x6 sheet</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="content-band" id="requirements" aria-labelledby="requirements-title">
+        <div>
+          <p class="section-kicker">How it works</p>
+          <h2 id="requirements-title">A short path from selfie to official-size photo.</h2>
+        </div>
+        <div class="step-grid">
+          <article>
+            <span>1</span>
+            <h3>Pick the document</h3>
+            <p>Requirements update beside the tool so you know what the photo is being prepared for.</p>
+          </article>
+          <article>
+            <span>2</span>
+            <h3>Upload or capture</h3>
+            <p>Use a JPG, PNG, or WebP image. The prototype previews locally in your browser.</p>
+          </article>
+          <article>
+            <span>3</span>
+            <h3>Adjust and export</h3>
+            <p>Crop, zoom, rotate, then export a digital image or printable 4x6 sheet.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-band two-column" id="pricing" aria-labelledby="pricing-title">
+        <div>
+          <p class="section-kicker">Included in prototype</p>
+          <h2 id="pricing-title">Simple outputs, no account wall.</h2>
+        </div>
+        <div class="summary-card">
+          <p>Digital download and printable sheet are shown as included. Real checkout, background replacement, and automated government-rule validation are later phases.</p>
+        </div>
+      </section>
+
+      <section class="content-band two-column" id="help" aria-labelledby="help-title">
+        <div>
+          <p class="section-kicker">Help</p>
+          <h2 id="help-title">Use a clear front-facing photo.</h2>
+        </div>
+        <div class="summary-card">
+          <p>Stand in even light, face the camera, keep your expression neutral, and avoid glasses glare or shadows behind your head.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
