@@ -33,6 +33,28 @@ test('script wires upload preview and export state behavior', () => {
   assert.match(js, /resetButton\.addEventListener\('click'/);
 });
 
+test('export buttons download digital and printable photo outputs', () => {
+  const html = read('index.html');
+  const js = read('app.js');
+
+  assert.match(html, /id="downloadDigitalButton"/);
+  assert.match(html, /id="downloadPrintButton"/);
+  assert.match(js, /downloadDigitalButton\.addEventListener\('click'/);
+  assert.match(js, /downloadPrintButton\.addEventListener\('click'/);
+  assert.match(js, /downloadCanvas/);
+  assert.match(js, /drawImage/);
+});
+
+test('zoom and rotation update crop fit warnings', () => {
+  const js = read('app.js');
+
+  assert.match(js, /evaluateCropFit/);
+  assert.match(js, /setChecklistItem\('head'/);
+  assert.match(js, /statusPill\.classList\.toggle\('is-danger'/);
+  assert.match(js, /zoomRange\.addEventListener\('input', updatePreviewTransform\)/);
+  assert.match(js, /rotateRange\.addEventListener\('input', updatePreviewTransform\)/);
+});
+
 test('prototype includes AI assessment checks for human subject, lighting, and head position', () => {
   const html = read('index.html');
   const js = read('app.js');

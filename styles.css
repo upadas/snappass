@@ -308,6 +308,11 @@ h1 {
   color: var(--color-warning);
 }
 
+.status-pill.is-danger {
+  background: #ffe8e8;
+  color: var(--color-danger);
+}
+
 .preview-layout {
   display: grid;
   grid-template-columns: minmax(170px, 1fr) minmax(170px, 0.9fr);
@@ -453,6 +458,23 @@ h1 {
 .check-item.is-warning span::before {
   content: "!";
   color: #6f4100;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.check-item.is-danger {
+  border-color: #f1b5b5;
+  background: #fff0f0;
+  color: var(--color-danger);
+}
+
+.check-item.is-danger span {
+  background: #f1b5b5;
+}
+
+.check-item.is-danger span::before {
+  content: "!";
+  color: #7d1f1f;
   font-size: 0.78rem;
   font-weight: 900;
 }

@@ -17,6 +17,10 @@ const cameraButton = document.querySelector('#cameraButton');
 const aiStatus = document.querySelector('#aiStatus');
 const humanWarning = document.querySelector('#humanWarning');
 const aiAssessment = document.querySelector('#aiAssessment');
+const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
+const downloadPrintButton = document.querySelector('#downloadPrintButton');
+
+let currentImageFile = null;
 
 const requirementCopy = {
   us: {
@@ -48,7 +52,7 @@ const requirementCopy = {
 const setChecklist = (state) => {
   const items = Array.from(checklist.querySelectorAll('.check-item'));
   items.forEach((item, index) => {
-    item.classList.remove('is-pending', 'is-pass', 'is-warning');
+    item.classList.remove('is-pending', 'is-pass', 'is-warning', 'is-danger');
     if (state === 'ready') {
       item.classList.add('is-pending');
       return;
@@ -59,6 +63,17 @@ const setChecklist = (state) => {
     }
     item.classList.add('is-pass');
   });
+};
+
+const setChecklistItem = (name, state, message) => {
+  const item = checklist.querySelector(`[data-check="${name}"]`);
+  if (!item) {
+    return;
+  }
+
+  item.classList.remove('is-pending', 'is-pass', 'is-warning', 'is-danger');
+  item.classList.add(`is-${state}`);
+  item.lastChild.textContent = message;
 };
 
 const setAiCheck = (name, state, message) => {
@@ -133,9 +148,43 @@ const updatePreviewTransform = () => {
   rotateValue.textContent = `${rotate}°`;
   photoFrame.style.setProperty('--preview-zoom', String(zoom / 100));
   photoFrame.style.setProperty('--preview-rotate', `${rotate}deg`);
+  evaluateCropFit();
+};
+
+const evaluateCropFit = () => {
+  if (!currentImageFile) {
+    return;
+  }
+
+  const zoom = Number(zoomRange.value);
+  const rotate = Math.abs(Number(rotateRange.value));
+  const isDanger = zoom < 88 || zoom > 132 || rotate > 6;
+  const isWarning = !isDanger && (zoom < 94 || zoom > 120 || rotate > 3);
+
+  statusPill.classList.toggle('is-danger', isDanger);
+  statusPill.classList.toggle('is-warning', isWarning && !isDanger);
+
+  if (isDanger) {
+    statusPill.textContent = 'Fix crop';
+    setChecklistItem('head', 'danger', 'Headshot out of range');
+    setAiCheck('head', 'warning', 'Head size or rotation is outside the passport guide. Adjust zoom/rotate before export.');
+    return;
+  }
+
+  if (isWarning) {
+    statusPill.textContent = 'Adjust crop';
+    setChecklistItem('head', 'warning', 'Headshot needs adjustment');
+    setAiCheck('head', 'warning', 'Head is close, but zoom or rotation may need a small adjustment.');
+    return;
+  }
+
+  statusPill.textContent = 'Preview ready';
+  setChecklistItem('head', 'pass', 'Head centered');
+  setAiCheck('head', 'pass', 'Head appears centered inside the guide.');
 };
 
 const showLoadedState = (file) => {
+  currentImageFile = file;
   photoPreview.src = URL.createObjectURL(file);
   photoPreview.alt = `Preview of ${file.name}`;
   photoFrame.classList.add('has-photo');
@@ -143,12 +192,14 @@ const showLoadedState = (file) => {
   exportPanel.hidden = false;
   statusPill.textContent = 'Review lighting';
   statusPill.classList.add('is-warning');
+  statusPill.classList.remove('is-danger');
   setChecklist('loaded');
   runAiAssessment(file);
   updatePreviewTransform();
 };
 
 const resetState = () => {
+  currentImageFile = null;
   photoInput.value = '';
   photoPreview.removeAttribute('src');
   photoPreview.alt = '';
@@ -158,10 +209,87 @@ const resetState = () => {
   zoomRange.value = '100';
   rotateRange.value = '0';
   statusPill.textContent = 'Ready';
-  statusPill.classList.remove('is-warning');
+  statusPill.classList.remove('is-warning', 'is-danger');
   setChecklist('ready');
   resetAiAssessment();
   updatePreviewTransform();
+};
+
+const drawPhotoToCanvas = (canvas, options = {}) => {
+  const context = canvas.getContext('2d');
+  const zoom = Number(zoomRange.value) / 100;
+  const rotate = Number(rotateRange.value) * Math.PI / 180;
+  const size = options.size || canvas.width;
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.save();
+  context.translate(canvas.width / 2, canvas.height / 2);
+  context.rotate(rotate);
+  context.scale(zoom, zoom);
+  context.drawImage(photoPreview, -size / 2, -size / 2, size, size);
+  context.restore();
+};
+
+const downloadCanvas = (canvas, filename) => {
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+const downloadDigitalPhoto = () => {
+  if (!currentImageFile) {
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 600;
+  drawPhotoToCanvas(canvas, { size: 600 });
+  downloadCanvas(canvas, 'snappass-digital-photo.png');
+};
+
+const downloadPrintableSheet = () => {
+  if (!currentImageFile) {
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 1800;
+  canvas.height = 1200;
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const photoCanvas = document.createElement('canvas');
+  photoCanvas.width = 600;
+  photoCanvas.height = 600;
+  drawPhotoToCanvas(photoCanvas, { size: 600 });
+
+  const positions = [
+    [160, 160],
+    [820, 160],
+    [160, 820],
+    [820, 820]
+  ];
+
+  positions.forEach(([x, y]) => {
+    context.drawImage(photoCanvas, x, y, 300, 300);
+    context.strokeStyle = '#d5e4dd';
+    context.strokeRect(x, y, 300, 300);
+  });
+
+  context.fillStyle = '#10251f';
+  context.font = '32px system-ui, sans-serif';
+  context.fillText('SnapPass.me printable 4x6 sheet', 1160, 220);
+  context.font = '22px system-ui, sans-serif';
+  context.fillText('Prototype output: verify final photo', 1160, 262);
+  context.fillText('against official requirements.', 1160, 292);
+
+  downloadCanvas(canvas, 'snappass-printable-4x6.png');
 };
 
 country.addEventListener('change', updateRequirementSummary);
@@ -187,6 +315,8 @@ zoomRange.addEventListener('input', updatePreviewTransform);
 rotateRange.addEventListener('input', updatePreviewTransform);
 
 resetButton.addEventListener('click', resetState);
+downloadDigitalButton.addEventListener('click', downloadDigitalPhoto);
+downloadPrintButton.addEventListener('click', downloadPrintableSheet);
 
 cameraButton.addEventListener('click', () => {
   photoInput.click();
