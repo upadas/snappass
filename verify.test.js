@@ -77,9 +77,22 @@ test('deployment package supports Render, Railway, and Vercel', () => {
   const vercelJson = JSON.parse(read('vercel.json'));
 
   assert.equal(packageJson.scripts.start, 'node server.js');
-  assert.equal(packageJson.scripts.test, 'node --test verify.test.js');
+  assert.equal(packageJson.scripts['test:source'], 'node --test verify.test.js');
   assert.match(server, /process\.env\.PORT/);
   assert.match(renderYaml, /type:\s*web/);
   assert.match(renderYaml, /startCommand:\s*npm start/);
   assert.equal(vercelJson.cleanUrls, true);
+});
+
+test('package includes Playwright browser verification', () => {
+  const packageJson = JSON.parse(read('package.json'));
+  const playwrightTest = read('playwright.test.js');
+
+  assert.equal(packageJson.scripts['test:source'], 'node --test verify.test.js');
+  assert.equal(packageJson.scripts['test:browser'], 'node playwright.test.js');
+  assert.equal(packageJson.scripts.test, 'npm run test:source && npm run test:browser');
+  assert.match(playwrightTest, /chromium/);
+  assert.match(playwrightTest, /downloadDigitalButton/);
+  assert.match(playwrightTest, /downloadPrintButton/);
+  assert.match(playwrightTest, /Fix crop/);
 });

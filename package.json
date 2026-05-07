@@ -5,7 +5,9 @@
   "description": "A simple passport, visa, and ID photo maker prototype.",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test verify.test.js"
+    "test": "npm run test:source && npm run test:browser",
+    "test:source": "node --test verify.test.js",
+    "test:browser": "node playwright.test.js"
   },
   "engines": {
     "node": ">=20"

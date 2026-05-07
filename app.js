@@ -21,6 +21,9 @@ const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
 const downloadPrintButton = document.querySelector('#downloadPrintButton');
 
 let currentImageFile = null;
+let currentAiFindings = {
+  hasHeadIssue: false
+};
 
 const requirementCopy = {
   us: {
@@ -92,6 +95,7 @@ const runAiAssessment = (file) => {
   const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
   const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
 
+  currentAiFindings = { hasHeadIssue };
   humanWarning.hidden = !isLikelyNotHuman;
   aiStatus.textContent = isLikelyNotHuman ? 'Retake needed' : 'AI preview';
   aiStatus.classList.toggle('is-warning', isLikelyNotHuman || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
@@ -178,6 +182,14 @@ const evaluateCropFit = () => {
     return;
   }
 
+  if (currentAiFindings.hasHeadIssue) {
+    statusPill.textContent = 'Adjust crop';
+    statusPill.classList.add('is-warning');
+    setChecklistItem('head', 'warning', 'Headshot needs adjustment');
+    setAiCheck('head', 'warning', 'Head may be tilted or off center. Use zoom/rotate or retake straight-on.');
+    return;
+  }
+
   statusPill.textContent = 'Preview ready';
   setChecklistItem('head', 'pass', 'Head centered');
   setAiCheck('head', 'pass', 'Head appears centered inside the guide.');
@@ -200,6 +212,9 @@ const showLoadedState = (file) => {
 
 const resetState = () => {
   currentImageFile = null;
+  currentAiFindings = {
+    hasHeadIssue: false
+  };
   photoInput.value = '';
   photoPreview.removeAttribute('src');
   photoPreview.alt = '';
