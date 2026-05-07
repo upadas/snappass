@@ -358,6 +358,12 @@ h1 {
   opacity: 1;
 }
 
+.photo-frame.subject-mask img {
+  -webkit-mask-image: radial-gradient(ellipse 40% 52% at 50% 48%, #000 0 68%, transparent 72%);
+  mask-image: radial-gradient(ellipse 40% 52% at 50% 48%, #000 0 68%, transparent 72%);
+  filter: drop-shadow(0 8px 14px rgba(16, 37, 31, 0.14));
+}
+
 .photo-frame.background-white {
   background: #fff;
 }

@@ -162,6 +162,7 @@ const applyBackgroundMode = () => {
   selectedBackgroundMode = backgroundMode.value;
   photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
   photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
+  photoFrame.classList.toggle('subject-mask', selectedBackgroundMode !== 'keep-original');
 
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
@@ -271,6 +272,23 @@ const fillCanvasBackground = (context, canvas) => {
   context.fillRect(0, 0, canvas.width, canvas.height);
 };
 
+const drawMaskedSubject = (context, canvas, drawSubject) => {
+  context.save();
+  context.beginPath();
+  context.ellipse(
+    canvas.width / 2,
+    canvas.height * 0.48,
+    canvas.width * 0.34,
+    canvas.height * 0.45,
+    0,
+    0,
+    Math.PI * 2
+  );
+  context.clip();
+  drawSubject();
+  context.restore();
+};
+
 const drawPhotoToCanvas = (canvas, options = {}) => {
   const context = canvas.getContext('2d');
   const zoom = Number(zoomRange.value) / 100;
@@ -278,11 +296,32 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   const size = options.size || canvas.width;
 
   fillCanvasBackground(context, canvas);
+
   context.save();
+  const shouldMaskSubject = selectedBackgroundMode !== 'keep-original';
+  if (shouldMaskSubject) {
+    context.beginPath();
+    context.ellipse(
+      canvas.width / 2,
+      canvas.height * 0.48,
+      canvas.width * 0.34,
+      canvas.height * 0.45,
+      0,
+      0,
+      Math.PI * 2
+    );
+    context.clip();
+  }
+
   context.translate(canvas.width / 2, canvas.height / 2);
   context.rotate(rotate);
   context.scale(zoom, zoom);
-  context.drawImage(photoPreview, -size / 2, -size / 2, size, size);
+
+  const drawSubject = () => {
+    context.drawImage(photoPreview, -size / 2, -size / 2, size, size);
+  };
+
+  drawSubject();
   context.restore();
 };
 

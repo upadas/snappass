@@ -58,6 +58,7 @@ test('zoom and rotation update crop fit warnings', () => {
 test('background replacement controls are available and affect exports', () => {
   const html = read('index.html');
   const js = read('app.js');
+  const css = read('styles.css');
   const playwrightTest = read('playwright.test.js');
 
   assert.match(html, /id="backgroundMode"/);
@@ -67,8 +68,11 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(js, /applyBackgroundMode/);
   assert.match(js, /selectedBackgroundMode/);
   assert.match(js, /fillCanvasBackground/);
+  assert.match(js, /drawMaskedSubject/);
+  assert.match(css, /subject-mask/);
   assert.match(playwrightTest, /backgroundMode/);
   assert.match(playwrightTest, /replace-white/);
+  assert.match(playwrightTest, /subjectMask/);
 });
 
 test('prototype includes AI assessment checks for human subject, lighting, and head position', () => {

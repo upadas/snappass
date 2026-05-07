@@ -48,10 +48,12 @@ const run = async () => {
     const backgroundState = await page.evaluate(() => ({
       mode: document.querySelector('#backgroundMode').value,
       whitePreview: document.querySelector('#photoFrame').classList.contains('background-white'),
+      subjectMask: document.querySelector('#photoFrame').classList.contains('subject-mask'),
       backgroundText: document.querySelector('[data-check="background"]').textContent.trim()
     }));
     assert.equal(backgroundState.mode, 'replace-white');
     assert.equal(backgroundState.whitePreview, true);
+    assert.equal(backgroundState.subjectMask, true);
     assert.equal(backgroundState.backgroundText, 'Background: plain white');
 
     await page.locator('#zoomRange').evaluate((element) => {
