@@ -10,6 +10,7 @@ test('page contains the approved SnapPass product shell', () => {
   const html = read('index.html');
   assert.match(html, /SnapPass/);
   assert.match(html, /Passport photos that pass the first time/);
+  assert.match(html, /Passport photos in a snap\./);
   assert.match(html, /id="country"/);
   assert.match(html, /id="documentType"/);
   assert.match(html, /id="photoInput"/);
