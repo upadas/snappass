@@ -83,18 +83,48 @@
             </div>
 
             <div class="preview-layout">
-              <div class="photo-stage" id="photoStage" role="button" tabindex="0" aria-label="Click to upload a passport photo">
-                <div class="photo-frame" id="photoFrame" aria-label="Photo preview">
-                  <img id="photoPreview" alt="">
-                  <div class="face-placeholder" aria-hidden="true">
-                    <span class="head"></span>
-                    <span class="shoulders"></span>
+              <div class="preview-main">
+                <div class="photo-stage" id="photoStage" role="button" tabindex="0" aria-label="Click to upload a passport photo">
+                  <div class="photo-frame" id="photoFrame" aria-label="Photo preview">
+                    <img id="photoPreview" alt="">
+                    <div class="face-placeholder" aria-hidden="true">
+                      <span class="head"></span>
+                      <span class="shoulders"></span>
+                    </div>
+                    <div class="upload-watermark" aria-hidden="true">
+                      <strong>Watermark</strong>
+                      <span>Click to upload</span>
+                    </div>
+                    <span class="crop-guide" aria-hidden="true"></span>
                   </div>
-                  <div class="upload-watermark" aria-hidden="true">
-                    <strong>Watermark</strong>
-                    <span>Click to upload</span>
+                  <div class="print-preview-popover" id="printPreviewPanel" hidden role="tooltip" aria-label="Live printable 4x6 sheet preview popup">
+                    <div class="print-preview-header">
+                      <span>Live 4x6 preview</span>
+                      <strong>4 photos, 2 x 2 in each</strong>
+                    </div>
+                    <canvas class="print-preview-canvas" id="printSheetPreview" width="900" height="600" aria-label="Live printable 4x6 sheet preview"></canvas>
                   </div>
-                  <span class="crop-guide" aria-hidden="true"></span>
+                </div>
+
+                <div class="adjustment-panel" id="adjustmentPanel" hidden>
+                  <label class="background-control" for="backgroundMode">
+                    <span>Background</span>
+                    <select id="backgroundMode" name="backgroundMode">
+                      <option value="keep-original" selected>Keep original</option>
+                      <option value="replace-white">Replace with white</option>
+                      <option value="ai-cleanup">AI cleanup preview</option>
+                    </select>
+                  </label>
+                  <p class="background-note" id="backgroundNote">Use a plain white or off-white background for most passport photos.</p>
+                  <div class="range-row">
+                    <label for="zoomRange">Zoom <strong id="zoomValue">100%</strong></label>
+                    <input id="zoomRange" type="range" min="80" max="140" value="100">
+                  </div>
+                  <div class="range-row">
+                    <label for="rotateRange">Rotate <strong id="rotateValue">0°</strong></label>
+                    <input id="rotateRange" type="range" min="-8" max="8" value="0">
+                  </div>
+                  <button class="text-button" id="resetButton" type="button">Start over</button>
                 </div>
               </div>
 
@@ -111,14 +141,6 @@
                   <div class="check-item is-pending" data-check="lighting"><span></span>Lighting review</div>
                 </div>
               </div>
-            </div>
-
-            <div class="print-preview-panel" id="printPreviewPanel" hidden>
-              <div class="print-preview-header">
-                <span>Live 4x6 preview</span>
-                <strong>4 photos, 2 x 2 in each</strong>
-              </div>
-              <canvas class="print-preview-canvas" id="printSheetPreview" width="900" height="600" aria-label="Live printable 4x6 sheet preview"></canvas>
             </div>
 
             <div class="ai-assessment" id="aiAssessment" aria-live="polite">
@@ -150,27 +172,6 @@
               </div>
               <button class="suggestion-button" id="applySuggestionButton" type="button" hidden>Apply suggested crop</button>
               <p class="ai-note">AI agent mode: analysis runs server-side. Without an API key, SnapPass uses a local fallback preview.</p>
-            </div>
-
-            <div class="adjustment-panel" id="adjustmentPanel" hidden>
-              <label class="background-control" for="backgroundMode">
-                <span>Background</span>
-                <select id="backgroundMode" name="backgroundMode">
-                  <option value="keep-original" selected>Keep original</option>
-                  <option value="replace-white">Replace with white</option>
-                  <option value="ai-cleanup">AI cleanup preview</option>
-                </select>
-              </label>
-              <p class="background-note" id="backgroundNote">Use a plain white or off-white background for most passport photos.</p>
-              <div class="range-row">
-                <label for="zoomRange">Zoom <strong id="zoomValue">100%</strong></label>
-                <input id="zoomRange" type="range" min="80" max="140" value="100">
-              </div>
-              <div class="range-row">
-                <label for="rotateRange">Rotate <strong id="rotateValue">0°</strong></label>
-                <input id="rotateRange" type="range" min="-8" max="8" value="0">
-              </div>
-              <button class="text-button" id="resetButton" type="button">Start over</button>
             </div>
 
             <div class="export-panel" id="exportPanel" hidden>

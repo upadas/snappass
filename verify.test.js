@@ -112,7 +112,11 @@ test('working panel keeps upload, AI status, and print preview close together', 
   assert.match(html, /preview-upload-actions/);
   assert.match(html, /for="photoInput">Upload photo/);
   assert.match(html, /id="printPreviewPanel"/);
+  assert.match(html, /class="print-preview-popover"/);
+  assert.match(html, /class="adjustment-panel" id="adjustmentPanel" hidden[\s\S]*id="zoomRange"[\s\S]*id="rotateRange"/);
   assert.match(css, /\.preview-upload-actions/);
+  assert.match(css, /\.photo-stage:hover \.print-preview-popover:not\(\[hidden\]\)/);
+  assert.match(css, /\.preview-main/);
   assert.match(css, /max-height:\s*calc\(100vh - 96px\)/);
 });
 

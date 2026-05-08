@@ -90,7 +90,9 @@ const run = async () => {
       agentStatus: document.querySelector('#aiStatus').textContent.trim(),
       applySuggestionHidden: document.querySelector('#applySuggestionButton').hidden,
       printPreviewHidden: document.querySelector('#printPreviewPanel').hidden,
+      printPreviewDisplay: getComputedStyle(document.querySelector('#printPreviewPanel')).display,
       printPreviewLabel: document.querySelector('.print-preview-header strong').textContent.trim(),
+      adjustmentParent: document.querySelector('#adjustmentPanel').parentElement.className,
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -101,10 +103,16 @@ const run = async () => {
     assert.equal(uploaded.agentStatus, 'AI preview');
     assert.equal(uploaded.applySuggestionHidden, false);
     assert.equal(uploaded.printPreviewHidden, false);
+    assert.equal(uploaded.printPreviewDisplay, 'none');
     assert.equal(uploaded.printPreviewLabel, '4 photos, 2 x 2 in each');
+    assert.equal(uploaded.adjustmentParent, 'preview-main');
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
+
+    await page.hover('#photoFrame');
+    const hoveredPreviewDisplay = await page.evaluate(() => getComputedStyle(document.querySelector('#printPreviewPanel')).display);
+    assert.equal(hoveredPreviewDisplay, 'block');
 
     await page.click('#applySuggestionButton');
     const appliedSuggestion = await page.evaluate(() => ({
