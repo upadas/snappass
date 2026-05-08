@@ -29,8 +29,8 @@
           <div class="hero-copy">
             <p class="eyebrow">US passport, visa, and ID photos</p>
             <h1 id="hero-title">Passport photos that pass the first time.</h1>
-            <p class="tagline">Free to use. Ad-supported, lightly.</p>
-            <p class="hero-text">Choose your document, upload a photo, and get a correctly sized digital file or printable 4x6 sheet.</p>
+            <p class="tagline">Free to use. Donations welcome.</p>
+            <p class="hero-text">Choose your document, upload a photo, and let the AI prep flow scan, crop, preserve the original face, and generate a digital file or printable 4x6 sheet.</p>
 
             <input id="photoInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp">
 
@@ -69,7 +69,6 @@
                     <div class="upload-watermark" aria-hidden="true">
                       <span>Click to upload</span>
                     </div>
-                    <span class="crop-guide" aria-hidden="true"></span>
                   </div>
                   <div class="print-preview-popover" id="printPreviewPanel" hidden role="tooltip" aria-label="Live printable 4x6 sheet preview popup">
                     <div class="print-preview-header">
@@ -138,6 +137,12 @@
                   <div class="check-item is-pending" data-check="head"><span></span>Head centered</div>
                   <div class="check-item is-pending" data-check="lighting"><span></span>Lighting review</div>
                 </div>
+                <div class="agent-prep" aria-label="AI preparation steps">
+                  <div><span></span>Scan face</div>
+                  <div><span></span>Suggest crop</div>
+                  <div><span></span>Clean background</div>
+                  <div><span></span>Resize output</div>
+                </div>
               </div>
             </div>
 
@@ -169,7 +174,7 @@
                 </div>
               </div>
               <button class="suggestion-button" id="applySuggestionButton" type="button" hidden>Apply suggested crop</button>
-              <p class="ai-note">AI agent mode: analysis runs server-side. Without an API key, SnapPass uses a local fallback preview.</p>
+              <p class="ai-note">AI agent mode: analysis and cleanup run server-side. Facial features are not intentionally changed. Without an API key, SnapPass uses local checks and keeps the original photo intact.</p>
             </div>
 
             <div class="export-panel" id="exportPanel" hidden>
@@ -210,10 +215,10 @@
       <section class="content-band two-column" id="pricing" aria-labelledby="pricing-title">
         <div>
           <p class="section-kicker">Pricing</p>
-          <h2 id="pricing-title">Free passport photos, supported by minimal ads.</h2>
+          <h2 id="pricing-title">Free passport photos, supported by donations and minimal ads.</h2>
         </div>
         <div class="summary-card">
-          <p>SnapPass is designed to stay free for basic digital downloads and printable 4x6 sheets. A small ad placement helps cover hosting and AI costs without interrupting the photo workflow.</p>
+          <p>Some passport photo sites turn the final download into a paid checkout. SnapPass keeps digital downloads and printable 4x6 sheets free, with optional donations to help cover hosting, image processing, OpenAI API calls, and the AI agents that review and prepare each photo.</p>
         </div>
       </section>
 
@@ -233,7 +238,7 @@
           <h2 id="print-partners-title">Retail print ordering should be a server-side handoff.</h2>
         </div>
         <div class="summary-card">
-          <p>Walgreens is the cleanest first partner when API access is approved: SnapPass can generate the 4x6 sheet, send a temporary image URL, store choice, and contact details, then show the returned order ID. For Walmart, CVS, and other retailers, integrations often route through print platforms such as PNI Digital Media or Fujifilm Imagine rather than direct public APIs.</p>
+          <p>Walgreens is the cleanest first partner when API access is approved: SnapPass can generate the 4x6 sheet, send a temporary image URL, store choice, and contact details, then show the returned order ID. A generic print handoff API can also support Walmart, CVS, and other retailers through providers such as PNI Digital Media or Fujifilm Imagine when direct public APIs are limited.</p>
         </div>
       </section>
     </main>

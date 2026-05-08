@@ -52,6 +52,9 @@ test('site positioning is free with minimal ad support', () => {
   const css = read('styles.css');
 
   assert.match(html, /Free to use/);
+  assert.match(html, /Donations welcome/);
+  assert.match(html, /optional donations/);
+  assert.match(html, /OpenAI API calls/);
   assert.match(html, /Ad-supported/);
   assert.match(html, /class="ad-slot"/);
   assert.match(css, /\.ad-slot/);
@@ -119,8 +122,10 @@ test('working panel keeps upload, AI status, and print preview close together', 
   assert.match(css, /\.photo-stage:hover \.print-preview-popover:not\(\[hidden\]\)/);
   assert.match(css, /transition:\s*opacity 180ms ease 1s/);
   assert.match(css, /\.preview-main/);
-  assert.match(css, /\.crop-guide::before/);
-  assert.match(css, /\.crop-guide::after/);
+  assert.doesNotMatch(html, /class="crop-guide"/);
+  assert.doesNotMatch(css, /\.crop-guide/);
+  assert.match(html, /agent-prep/);
+  assert.match(css, /\.agent-prep/);
   assert.match(css, /max-height:\s*calc\(100vh - 96px\)/);
 });
 
@@ -136,7 +141,6 @@ test('zoom and rotation update crop fit warnings', () => {
   assert.match(js, /previewPanX/);
   assert.match(js, /photoFrame\.addEventListener\('pointerdown'/);
   assert.match(css, /--preview-pan-x/);
-  assert.match(css, /border-radius:\s*48% 48% 0 0/);
 });
 
 test('background replacement controls are available and affect exports', () => {
@@ -187,6 +191,7 @@ test('site documents print partner and deployment strategy', () => {
 
   assert.match(html, /Print pickup roadmap/);
   assert.match(html, /Walgreens/);
+  assert.match(html, /generic print handoff API/);
   assert.match(html, /PNI Digital Media|Fujifilm/);
   assert.match(readme, /Recommended deployment/);
   assert.match(readme, /Railway/);
