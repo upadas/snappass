@@ -83,7 +83,10 @@
                 <p class="section-kicker">Live compliance preview</p>
                 <h2>Preview check</h2>
               </div>
-              <span class="status-pill" id="statusPill">Ready</span>
+              <div class="preview-header-actions preview-upload-actions">
+                <label class="button button-primary button-compact" for="photoInput">Upload photo</label>
+                <span class="status-pill" id="statusPill">Ready</span>
+              </div>
             </div>
 
             <div class="preview-layout">
@@ -105,6 +108,14 @@
                 <div class="check-item is-pending" data-check="head"><span></span>Head centered</div>
                 <div class="check-item is-pending" data-check="lighting"><span></span>Lighting review</div>
               </div>
+            </div>
+
+            <div class="print-preview-panel" id="printPreviewPanel" hidden>
+              <div class="print-preview-header">
+                <span>Live 4x6 preview</span>
+                <strong>4 photos, 2 x 2 in each</strong>
+              </div>
+              <canvas class="print-preview-canvas" id="printSheetPreview" width="900" height="600" aria-label="Live printable 4x6 sheet preview"></canvas>
             </div>
 
             <div class="ai-assessment" id="aiAssessment" aria-live="polite">
@@ -161,13 +172,6 @@
 
             <div class="export-panel" id="exportPanel" hidden>
               <h3>Export options</h3>
-              <div class="print-preview-panel" id="printPreviewPanel" hidden>
-                <div class="print-preview-header">
-                  <span>Live 4x6 preview</span>
-                  <strong>6 photos, 2 x 2 in each</strong>
-                </div>
-                <canvas class="print-preview-canvas" id="printSheetPreview" width="900" height="600" aria-label="Live printable 4x6 sheet preview"></canvas>
-              </div>
               <div class="export-grid">
                 <button type="button" id="downloadDigitalButton">Download digital photo</button>
                 <button type="button" id="downloadPrintButton">Create printable 4x6 sheet</button>

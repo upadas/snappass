@@ -31,6 +31,7 @@ const PRINT_SHEET_WIDTH = 1800;
 const PRINT_SHEET_HEIGHT = 1200;
 const PRINT_PREVIEW_WIDTH = 900;
 const PRINT_PREVIEW_HEIGHT = 600;
+const PRINT_SHEET_QUOTE = 'Great journeys start with a clear first step.';
 
 let currentImageFile = null;
 let currentPhotoDataUrl = '';
@@ -579,12 +580,31 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   context.rotate(rotate);
   context.scale(zoom, zoom);
 
-  const drawSubject = () => {
-    context.drawImage(photoPreview, -size / 2, -size / 2, size, size);
-  };
+  const drawSubject = () => drawImageCover(context, photoPreview, -size / 2, -size / 2, size, size);
 
   drawSubject();
   context.restore();
+};
+
+const drawImageCover = (context, image, x, y, width, height) => {
+  const sourceWidth = image.naturalWidth || image.videoWidth || width;
+  const sourceHeight = image.naturalHeight || image.videoHeight || height;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = width / height;
+  let cropWidth = sourceWidth;
+  let cropHeight = sourceHeight;
+  let cropX = 0;
+  let cropY = 0;
+
+  if (sourceRatio > targetRatio) {
+    cropWidth = sourceHeight * targetRatio;
+    cropX = (sourceWidth - cropWidth) / 2;
+  } else {
+    cropHeight = sourceWidth / targetRatio;
+    cropY = (sourceHeight - cropHeight) / 2;
+  }
+
+  context.drawImage(image, cropX, cropY, cropWidth, cropHeight, x, y, width, height);
 };
 
 const getPrintSheetPositions = (scale = 1) => {
@@ -592,11 +612,31 @@ const getPrintSheetPositions = (scale = 1) => {
   return [
     [0, 0, size],
     [size, 0, size],
-    [size * 2, 0, size],
     [0, size, size],
-    [size, size, size],
-    [size * 2, size, size]
+    [size, size, size]
   ];
+};
+
+const drawPrintQuote = (context, scale = 1) => {
+  const quoteX = PASSPORT_PHOTO_SIZE * 2 * scale;
+  const quoteWidth = PASSPORT_PHOTO_SIZE * scale;
+  const quoteCenterX = quoteX + quoteWidth / 2;
+  const quoteCenterY = PRINT_SHEET_HEIGHT * scale / 2;
+
+  context.save();
+  context.fillStyle = '#f8fffb';
+  context.fillRect(quoteX, 0, quoteWidth, PRINT_SHEET_HEIGHT * scale);
+  context.strokeStyle = '#d5e4dd';
+  context.lineWidth = Math.max(1, 2 * scale);
+  context.strokeRect(quoteX + 0.5, 0.5, quoteWidth - 1, PRINT_SHEET_HEIGHT * scale - 1);
+  context.fillStyle = '#10251f';
+  context.textAlign = 'center';
+  context.font = `${Math.max(16, 44 * scale)}px system-ui, sans-serif`;
+  context.fillText('"' + PRINT_SHEET_QUOTE + '"', quoteCenterX, quoteCenterY - 16 * scale, quoteWidth * 0.82);
+  context.fillStyle = '#167f63';
+  context.font = `${Math.max(11, 22 * scale)}px system-ui, sans-serif`;
+  context.fillText('SnapPass.me', quoteCenterX, quoteCenterY + 38 * scale, quoteWidth * 0.82);
+  context.restore();
 };
 
 const drawPrintSheet = (canvas, scale = 1) => {
@@ -616,6 +656,8 @@ const drawPrintSheet = (canvas, scale = 1) => {
     context.lineWidth = Math.max(1, 2 * scale);
     context.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
   });
+
+  drawPrintQuote(context, scale);
 };
 
 const clearPrintSheetPreview = () => {

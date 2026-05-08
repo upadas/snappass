@@ -85,6 +85,7 @@ const run = async () => {
       agentStatus: document.querySelector('#aiStatus').textContent.trim(),
       applySuggestionHidden: document.querySelector('#applySuggestionButton').hidden,
       printPreviewHidden: document.querySelector('#printPreviewPanel').hidden,
+      printPreviewLabel: document.querySelector('.print-preview-header strong').textContent.trim(),
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
     }));
@@ -94,6 +95,7 @@ const run = async () => {
     assert.equal(uploaded.agentStatus, 'AI preview');
     assert.equal(uploaded.applySuggestionHidden, false);
     assert.equal(uploaded.printPreviewHidden, false);
+    assert.equal(uploaded.printPreviewLabel, '4 photos, 2 x 2 in each');
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
 

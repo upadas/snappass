@@ -73,14 +73,30 @@ test('export buttons download digital and printable photo outputs', () => {
 test('printable output uses a true 4x6 300 dpi sheet with live preview', () => {
   const js = read('app.js');
   const css = read('styles.css');
+  const html = read('index.html');
 
   assert.match(js, /PRINT_SHEET_WIDTH\s*=\s*1800/);
   assert.match(js, /PRINT_SHEET_HEIGHT\s*=\s*1200/);
   assert.match(js, /PASSPORT_PHOTO_SIZE\s*=\s*600/);
+  assert.match(js, /PRINT_SHEET_QUOTE/);
+  assert.match(js, /drawImageCover/);
   assert.match(js, /renderPrintSheetPreview/);
   assert.match(js, /getPrintSheetPositions/);
   assert.match(js, /drawPrintSheet/);
+  assert.match(js, /quoteX/);
+  assert.match(html, /4 photos, 2 x 2 in each/);
   assert.match(css, /\.print-preview-canvas/);
+});
+
+test('working panel keeps upload, AI status, and print preview close together', () => {
+  const html = read('index.html');
+  const css = read('styles.css');
+
+  assert.match(html, /preview-upload-actions/);
+  assert.match(html, /for="photoInput">Upload photo/);
+  assert.match(html, /id="printPreviewPanel"/);
+  assert.match(css, /\.preview-upload-actions/);
+  assert.match(css, /max-height:\s*calc\(100vh - 96px\)/);
 });
 
 test('zoom and rotation update crop fit warnings', () => {

@@ -112,9 +112,9 @@ a {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(410px, 0.98fr);
-  gap: clamp(28px, 5vw, 58px);
-  align-items: center;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(540px, 1.22fr);
+  gap: clamp(20px, 4vw, 42px);
+  align-items: start;
   max-width: 1180px;
   margin: 0 auto;
 }
@@ -324,6 +324,8 @@ h1 {
 .preview-card {
   padding: clamp(18px, 2.7vw, 26px);
   box-shadow: var(--shadow-soft);
+  max-height: calc(100vh - 96px);
+  overflow: auto;
 }
 
 .preview-header {
@@ -349,6 +351,22 @@ h1 {
   font-weight: 850;
 }
 
+.preview-header-actions,
+.preview-upload-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button-compact {
+  min-width: auto;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 0.84rem;
+}
+
 .status-pill.is-warning {
   background: var(--color-warning-bg);
   color: var(--color-warning);
@@ -368,7 +386,7 @@ h1 {
 .photo-stage {
   display: grid;
   place-items: center;
-  min-height: 318px;
+  min-height: 250px;
   border-radius: var(--radius);
   background:
     linear-gradient(45deg, rgba(22, 127, 99, 0.06) 25%, transparent 25% 75%, rgba(22, 127, 99, 0.06) 75%),
@@ -380,7 +398,7 @@ h1 {
 
 .photo-frame {
   position: relative;
-  width: min(68%, 178px);
+  width: min(62%, 166px);
   aspect-ratio: 1 / 1.28;
   overflow: hidden;
   border: 1px solid #b8cbc3;
@@ -541,9 +559,10 @@ h1 {
 
 .adjustment-panel,
 .export-panel,
-.ai-assessment {
-  margin-top: 18px;
-  padding-top: 16px;
+.ai-assessment,
+.print-preview-panel {
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--color-border);
 }
 
@@ -590,14 +609,14 @@ h1 {
 .ai-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  gap: 8px;
 }
 
 .ai-check {
   display: grid;
   gap: 5px;
-  min-height: 78px;
-  padding: 10px;
+  min-height: 64px;
+  padding: 9px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: #fff;
@@ -707,10 +726,6 @@ h1 {
 .export-panel h3 {
   margin: 0 0 10px;
   font-size: 1rem;
-}
-
-.print-preview-panel {
-  margin-bottom: 12px;
 }
 
 .print-preview-header {
@@ -834,6 +849,8 @@ h1 {
 
   .preview-card {
     order: 2;
+    max-height: none;
+    overflow: visible;
   }
 }
 
