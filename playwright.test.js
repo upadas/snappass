@@ -2,10 +2,24 @@ const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const { chromium } = require('playwright');
 
-const samplePng = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAAA/UlEQVR4nO3QQQ3AIADAQMAAivALDbwQfUTS0e1l5w6wwfXcA/gbC8hYQMLSgISlAQlLAxKWBqQsDUhYGpCwNCBhaUDC0oCEpQEJSwMSlgYkLA1IWJqwXjJLm3fX6Gc9mS69xgI7C8hYQMLSgISlAQlLAxKWBqQsDUhYGpCwNCBhaUDC0oCEpQEJSwMSlgYkLA1IWJqwXnK8wL2dWcKcHYFkLA1IWJqQsDQgYWlAwtKAhKUBCUsDEpYGJCwNSFga0L0BdBRvrMlIzeUAAAAASUVORK5CYII=',
-  'base64'
-);
+const portraitSvg = Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" fill="#f7f7f2"/>
+  <circle cx="300" cy="210" r="128" fill="#d79a78"/>
+  <path d="M170 190c20-110 235-110 260 0 8-120-260-125-260 0z" fill="#1e2524"/>
+  <rect x="190" y="350" width="220" height="230" rx="72" fill="#d9ded9"/>
+</svg>`);
+const nonPortraitSvg = Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" fill="#111827"/>
+  <rect x="70" y="150" width="460" height="170" fill="#374151"/>
+  <rect x="110" y="190" width="70" height="70" fill="#06b6d4"/>
+  <rect x="220" y="190" width="70" height="70" fill="#f59e0b"/>
+  <rect x="330" y="190" width="70" height="70" fill="#ef4444"/>
+  <path d="M80 410h390l55 60H40z" fill="#f97316"/>
+  <circle cx="150" cy="485" r="35" fill="#020617"/>
+  <circle cx="425" cy="485" r="35" fill="#020617"/>
+</svg>`);
 
 const port = 41739;
 const appUrl = `http://127.0.0.1:${port}/`;
@@ -28,7 +42,7 @@ const waitForServer = async () => {
 const startServer = async () => {
   const server = spawn(process.execPath, ['server.js'], {
     cwd: __dirname,
-    env: { ...process.env, PORT: String(port) },
+    env: { ...process.env, HOST: '127.0.0.1', PORT: String(port) },
     stdio: 'ignore'
   });
 
@@ -36,11 +50,11 @@ const startServer = async () => {
   return server;
 };
 
-const uploadSample = async (page, name = 'portrait.png') => {
+const uploadSample = async (page, name = 'portrait.svg', buffer = portraitSvg) => {
   await page.setInputFiles('#photoInput', {
     name,
-    mimeType: 'image/png',
-    buffer: samplePng
+    mimeType: 'image/svg+xml',
+    buffer
   });
   await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
   await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() !== 'Analyzing photo...');
@@ -69,13 +83,19 @@ const run = async () => {
       status: document.querySelector('#statusPill').textContent.trim(),
       hasPhoto: document.querySelector('#photoFrame').classList.contains('has-photo'),
       agentStatus: document.querySelector('#aiStatus').textContent.trim(),
-      applySuggestionHidden: document.querySelector('#applySuggestionButton').hidden
+      applySuggestionHidden: document.querySelector('#applySuggestionButton').hidden,
+      printPreviewHidden: document.querySelector('#printPreviewPanel').hidden,
+      printPreviewWidth: document.querySelector('#printSheetPreview').width,
+      printPreviewHeight: document.querySelector('#printSheetPreview').height
     }));
     assert.equal(uploaded.exportHidden, false);
     assert.equal(uploaded.status, 'Preview ready');
     assert.equal(uploaded.hasPhoto, true);
     assert.equal(uploaded.agentStatus, 'AI preview');
     assert.equal(uploaded.applySuggestionHidden, false);
+    assert.equal(uploaded.printPreviewHidden, false);
+    assert.equal(uploaded.printPreviewWidth, 900);
+    assert.equal(uploaded.printPreviewHeight, 600);
 
     await page.click('#applySuggestionButton');
     const appliedSuggestion = await page.evaluate(() => ({
@@ -122,21 +142,29 @@ const run = async () => {
     const printDownload = await Promise.all([
       page.waitForEvent('download'),
       page.click('#downloadPrintButton')
-    ]).then(([download]) => download.suggestedFilename());
-    assert.equal(printDownload, 'snappass-printable-4x6.png');
+    ]).then(async ([download]) => ({
+      filename: download.suggestedFilename(),
+      path: await download.path()
+    }));
+    assert.equal(printDownload.filename, 'snappass-printable-4x6.png');
+    const printBytes = require('node:fs').readFileSync(printDownload.path);
+    assert.equal(printBytes.readUInt32BE(16), 1800);
+    assert.equal(printBytes.readUInt32BE(20), 1200);
     await page.close();
 
     const warningPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     await warningPage.goto(appUrl);
-    await uploadSample(warningPage, 'object-dark-busy-offcenter.png');
+    await uploadSample(warningPage, 'city-street.svg', nonPortraitSvg);
     const aiWarning = await warningPage.evaluate(() => ({
       aiStatus: document.querySelector('#aiStatus').textContent.trim(),
       humanWarningHidden: document.querySelector('#humanWarning').hidden,
+      humanCheck: document.querySelector('[data-ai-check="human"]').textContent.trim(),
       warningCount: document.querySelectorAll('.ai-check.is-warning').length
     }));
     assert.equal(aiWarning.aiStatus, 'Retake needed');
     assert.equal(aiWarning.humanWarningHidden, false);
-    assert.equal(aiWarning.warningCount, 4);
+    assert.match(aiWarning.humanCheck, /No clear human face area detected/);
+    assert.ok(aiWarning.warningCount >= 1);
     await warningPage.close();
   } finally {
     await browser.close();

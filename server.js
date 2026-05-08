@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const port = Number(process.env.PORT || 3000);
+const host = process.env.HOST || '0.0.0.0';
 const root = __dirname;
 const openAiApiKey = process.env.OPENAI_API_KEY || '';
 const openAiModel = process.env.OPENAI_MODEL || 'gpt-5.5';
@@ -311,6 +312,6 @@ const server = http.createServer(async (request, response) => {
   });
 });
 
-server.listen(port, () => {
-  console.log(`SnapPass running on port ${port}`);
+server.listen(port, host, () => {
+  console.log(`SnapPass running on ${host}:${port}`);
 });

@@ -30,6 +30,12 @@ npm test
 
 ## Deploy
 
+## Recommended deployment
+
+For the current SnapPass codebase, **Railway is the best first production choice** because it runs the existing Node server without reshaping the API, starts at a predictable low monthly floor, and keeps the OpenAI key server-side. **Render** is a close second and is often the simplest dashboard experience for a small Node web service. **Vercel** is excellent for static frontend speed, but the current `/api/photo/*` Node server would need to be converted to Vercel serverless routes before production. **AWS Amplify** is strong when you want AWS-native scale and controls, but it adds more AWS surface area than this app needs at launch.
+
+Short version: use Railway for launch, Render if you prefer its dashboard, Vercel after converting the API routes, and AWS Amplify when AWS ecosystem integration matters more than simplicity.
+
 ### Render
 
 Use the included `render.yaml` Blueprint.

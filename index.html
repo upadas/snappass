@@ -161,6 +161,13 @@
 
             <div class="export-panel" id="exportPanel" hidden>
               <h3>Export options</h3>
+              <div class="print-preview-panel" id="printPreviewPanel" hidden>
+                <div class="print-preview-header">
+                  <span>Live 4x6 preview</span>
+                  <strong>6 photos, 2 x 2 in each</strong>
+                </div>
+                <canvas class="print-preview-canvas" id="printSheetPreview" width="900" height="600" aria-label="Live printable 4x6 sheet preview"></canvas>
+              </div>
               <div class="export-grid">
                 <button type="button" id="downloadDigitalButton">Download digital photo</button>
                 <button type="button" id="downloadPrintButton">Create printable 4x6 sheet</button>
@@ -211,6 +218,16 @@
         </div>
         <div class="summary-card">
           <p>Stand in even light, face the camera, keep your expression neutral, and avoid glasses glare or shadows behind your head.</p>
+        </div>
+      </section>
+
+      <section class="content-band two-column" id="print-partners" aria-labelledby="print-partners-title">
+        <div>
+          <p class="section-kicker">Print pickup roadmap</p>
+          <h2 id="print-partners-title">Retail print ordering should be a server-side handoff.</h2>
+        </div>
+        <div class="summary-card">
+          <p>Walgreens is the cleanest first partner when API access is approved: SnapPass can generate the 4x6 sheet, send a temporary image URL, store choice, and contact details, then show the returned order ID. For Walmart, CVS, and other retailers, integrations often route through print platforms such as PNI Digital Media or Fujifilm Imagine rather than direct public APIs.</p>
         </div>
       </section>
     </main>

@@ -63,10 +63,24 @@ test('export buttons download digital and printable photo outputs', () => {
 
   assert.match(html, /id="downloadDigitalButton"/);
   assert.match(html, /id="downloadPrintButton"/);
+  assert.match(html, /id="printSheetPreview"/);
   assert.match(js, /downloadDigitalButton\.addEventListener\('click'/);
   assert.match(js, /downloadPrintButton\.addEventListener\('click'/);
   assert.match(js, /downloadCanvas/);
   assert.match(js, /drawImage/);
+});
+
+test('printable output uses a true 4x6 300 dpi sheet with live preview', () => {
+  const js = read('app.js');
+  const css = read('styles.css');
+
+  assert.match(js, /PRINT_SHEET_WIDTH\s*=\s*1800/);
+  assert.match(js, /PRINT_SHEET_HEIGHT\s*=\s*1200/);
+  assert.match(js, /PASSPORT_PHOTO_SIZE\s*=\s*600/);
+  assert.match(js, /renderPrintSheetPreview/);
+  assert.match(js, /getPrintSheetPositions/);
+  assert.match(js, /drawPrintSheet/);
+  assert.match(css, /\.print-preview-canvas/);
 });
 
 test('zoom and rotation update crop fit warnings', () => {
@@ -112,8 +126,24 @@ test('prototype includes AI assessment checks for human subject, lighting, and h
   assert.match(js, /runAiAssessment/);
   assert.match(js, /requestPhotoAnalysis/);
   assert.match(js, /applyAiFindings/);
+  assert.match(js, /analyzePortraitPixels/);
+  assert.match(js, /mergeLocalImageFindings/);
   assert.match(js, /humanWarning\.hidden\s*=\s*!isLikelyNotHuman/);
   assert.match(js, /isLikelyNotHuman/);
+});
+
+test('site documents print partner and deployment strategy', () => {
+  const html = read('index.html');
+  const readme = read('README.md');
+
+  assert.match(html, /Print pickup roadmap/);
+  assert.match(html, /Walgreens/);
+  assert.match(html, /PNI Digital Media|Fujifilm/);
+  assert.match(readme, /Recommended deployment/);
+  assert.match(readme, /Railway/);
+  assert.match(readme, /Render/);
+  assert.match(readme, /Vercel/);
+  assert.match(readme, /AWS Amplify/);
 });
 
 test('server exposes private AI photo agent endpoints', () => {

@@ -22,6 +22,15 @@ const downloadPrintButton = document.querySelector('#downloadPrintButton');
 const backgroundMode = document.querySelector('#backgroundMode');
 const backgroundNote = document.querySelector('#backgroundNote');
 const applySuggestionButton = document.querySelector('#applySuggestionButton');
+const printPreviewPanel = document.querySelector('#printPreviewPanel');
+const printSheetPreview = document.querySelector('#printSheetPreview');
+
+const DIGITAL_PHOTO_SIZE = 600;
+const PASSPORT_PHOTO_SIZE = 600;
+const PRINT_SHEET_WIDTH = 1800;
+const PRINT_SHEET_HEIGHT = 1200;
+const PRINT_PREVIEW_WIDTH = 900;
+const PRINT_PREVIEW_HEIGHT = 600;
 
 let currentImageFile = null;
 let currentPhotoDataUrl = '';
@@ -33,6 +42,10 @@ let currentAiFindings = {
   hasHeadIssue: false,
   recommendedZoom: 100,
   recommendedRotation: 0
+};
+let localImageFindings = {
+  isHuman: true,
+  warning: ''
 };
 
 const requirementCopy = {
@@ -105,9 +118,71 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+const isSkinTone = (red, green, blue) => (
+  red > 95 &&
+  green > 45 &&
+  blue > 30 &&
+  red > green * 1.05 &&
+  red > blue * 1.18 &&
+  green > blue * 0.85 &&
+  Math.max(red, green, blue) - Math.min(red, green, blue) > 18
+);
+
+const analyzePortraitPixels = () => {
+  if (!photoPreview.naturalWidth || !photoPreview.naturalHeight) {
+    return { isHuman: true, warning: '' };
+  }
+
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.width = 96;
+  canvas.height = 96;
+  context.drawImage(photoPreview, 0, 0, canvas.width, canvas.height);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  let centralSkinPixels = 0;
+  let centralPixels = 0;
+
+  for (let y = 12; y < 62; y += 1) {
+    for (let x = 24; x < 72; x += 1) {
+      const index = (y * canvas.width + x) * 4;
+      centralPixels += 1;
+      if (isSkinTone(imageData[index], imageData[index + 1], imageData[index + 2])) {
+        centralSkinPixels += 1;
+      }
+    }
+  }
+
+  const centralSkinRatio = centralSkinPixels / centralPixels;
+  if (centralSkinRatio < 0.08) {
+    return {
+      isHuman: false,
+      warning: 'No clear human face area detected. Upload a front-facing portrait of one person.'
+    };
+  }
+
+  return { isHuman: true, warning: '' };
+};
+
+const mergeLocalImageFindings = (analysis) => {
+  if (localImageFindings.isHuman) {
+    return analysis;
+  }
+
+  return {
+    ...analysis,
+    isHuman: false,
+    warnings: [localImageFindings.warning, ...(analysis.warnings || [])],
+    checks: {
+      ...(analysis.checks || {}),
+      human: localImageFindings.warning
+    }
+  };
+};
+
 const runAiAssessment = (file) => {
   const name = file.name.toLowerCase();
-  const isLikelyNotHuman = /object|pet|car|logo|document|landscape|room|food/.test(name);
+  const isLikelyNotHuman = /object|pet|car|vehicle|logo|document|landscape|room|food/.test(name) || !localImageFindings.isHuman;
   const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name);
   const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
   const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
@@ -126,7 +201,7 @@ const runAiAssessment = (file) => {
     'human',
     isLikelyNotHuman ? 'warning' : 'pass',
     isLikelyNotHuman
-      ? 'No clear human portrait detected in this prototype state.'
+      ? (localImageFindings.warning || 'No clear human portrait detected in this prototype state.')
       : 'Looks like a single front-facing portrait.'
   );
   setAiCheck(
@@ -223,7 +298,7 @@ const requestPhotoAnalysis = async (file) => {
         documentType: documentType.value
       })
     });
-    const analysis = await response.json();
+    const analysis = mergeLocalImageFindings(await response.json());
     if (requestId !== analysisRequestId || !currentImageFile) {
       return;
     }
@@ -260,6 +335,7 @@ const updatePreviewTransform = () => {
   photoFrame.style.setProperty('--preview-zoom', String(zoom / 100));
   photoFrame.style.setProperty('--preview-rotate', `${rotate}deg`);
   evaluateCropFit();
+  renderPrintSheetPreview();
 };
 
 const requestBackgroundEdit = async () => {
@@ -316,6 +392,7 @@ const applyBackgroundMode = () => {
   photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
   photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
   photoFrame.classList.toggle('subject-mask', selectedBackgroundMode !== 'keep-original');
+  renderPrintSheetPreview();
 
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
@@ -391,6 +468,7 @@ const showLoadedState = async (file) => {
   photoFrame.classList.add('has-photo');
   adjustmentPanel.hidden = false;
   exportPanel.hidden = false;
+  printPreviewPanel.hidden = false;
   statusPill.textContent = 'Review lighting';
   statusPill.classList.add('is-warning');
   statusPill.classList.remove('is-danger');
@@ -405,7 +483,10 @@ const showLoadedState = async (file) => {
       return;
     }
     photoPreview.src = currentPhotoDataUrl;
+    await photoPreview.decode();
+    localImageFindings = analyzePortraitPixels();
     applyBackgroundMode();
+    runAiAssessment(file);
     await requestPhotoAnalysis(file);
   } catch {
     runAiAssessment(file);
@@ -424,6 +505,10 @@ const resetState = () => {
     recommendedZoom: 100,
     recommendedRotation: 0
   };
+  localImageFindings = {
+    isHuman: true,
+    warning: ''
+  };
   photoInput.value = '';
   photoPreview.removeAttribute('src');
   photoPreview.alt = '';
@@ -431,6 +516,7 @@ const resetState = () => {
   photoFrame.classList.remove('background-white', 'background-soft-white', 'subject-mask');
   adjustmentPanel.hidden = true;
   exportPanel.hidden = true;
+  printPreviewPanel.hidden = true;
   zoomRange.value = '100';
   rotateRange.value = '0';
   backgroundMode.value = 'keep-original';
@@ -440,6 +526,7 @@ const resetState = () => {
   setChecklist('ready');
   resetAiAssessment();
   updatePreviewTransform();
+  clearPrintSheetPreview();
 };
 
 const fillCanvasBackground = (context, canvas) => {
@@ -500,6 +587,52 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   context.restore();
 };
 
+const getPrintSheetPositions = (scale = 1) => {
+  const size = PASSPORT_PHOTO_SIZE * scale;
+  return [
+    [0, 0, size],
+    [size, 0, size],
+    [size * 2, 0, size],
+    [0, size, size],
+    [size, size, size],
+    [size * 2, size, size]
+  ];
+};
+
+const drawPrintSheet = (canvas, scale = 1) => {
+  const context = canvas.getContext('2d');
+  const photoCanvas = document.createElement('canvas');
+  const scaledPhotoSize = PASSPORT_PHOTO_SIZE * scale;
+  photoCanvas.width = scaledPhotoSize;
+  photoCanvas.height = scaledPhotoSize;
+  drawPhotoToCanvas(photoCanvas, { size: scaledPhotoSize });
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  getPrintSheetPositions(scale).forEach(([x, y, size]) => {
+    context.drawImage(photoCanvas, x, y, size, size);
+    context.strokeStyle = '#d5e4dd';
+    context.lineWidth = Math.max(1, 2 * scale);
+    context.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+  });
+};
+
+const clearPrintSheetPreview = () => {
+  const context = printSheetPreview.getContext('2d');
+  context.clearRect(0, 0, printSheetPreview.width, printSheetPreview.height);
+};
+
+const renderPrintSheetPreview = () => {
+  if (!currentImageFile || !printSheetPreview || !photoPreview.complete || !photoPreview.naturalWidth) {
+    return;
+  }
+
+  printSheetPreview.width = PRINT_PREVIEW_WIDTH;
+  printSheetPreview.height = PRINT_PREVIEW_HEIGHT;
+  drawPrintSheet(printSheetPreview, PRINT_PREVIEW_WIDTH / PRINT_SHEET_WIDTH);
+};
+
 const downloadCanvas = (canvas, filename) => {
   const link = document.createElement('a');
   link.href = canvas.toDataURL('image/png');
@@ -515,9 +648,9 @@ const downloadDigitalPhoto = () => {
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = 600;
-  canvas.height = 600;
-  drawPhotoToCanvas(canvas, { size: 600 });
+  canvas.width = DIGITAL_PHOTO_SIZE;
+  canvas.height = DIGITAL_PHOTO_SIZE;
+  drawPhotoToCanvas(canvas, { size: DIGITAL_PHOTO_SIZE });
   downloadCanvas(canvas, 'snappass-digital-photo.png');
 };
 
@@ -527,36 +660,9 @@ const downloadPrintableSheet = () => {
   }
 
   const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  canvas.width = 1800;
-  canvas.height = 1200;
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  const photoCanvas = document.createElement('canvas');
-  photoCanvas.width = 600;
-  photoCanvas.height = 600;
-  drawPhotoToCanvas(photoCanvas, { size: 600 });
-
-  const positions = [
-    [160, 160],
-    [820, 160],
-    [160, 820],
-    [820, 820]
-  ];
-
-  positions.forEach(([x, y]) => {
-    context.drawImage(photoCanvas, x, y, 300, 300);
-    context.strokeStyle = '#d5e4dd';
-    context.strokeRect(x, y, 300, 300);
-  });
-
-  context.fillStyle = '#10251f';
-  context.font = '32px system-ui, sans-serif';
-  context.fillText('SnapPass.me printable 4x6 sheet', 1160, 220);
-  context.font = '22px system-ui, sans-serif';
-  context.fillText('Prototype output: verify final photo', 1160, 262);
-  context.fillText('against official requirements.', 1160, 292);
+  canvas.width = PRINT_SHEET_WIDTH;
+  canvas.height = PRINT_SHEET_HEIGHT;
+  drawPrintSheet(canvas);
 
   downloadCanvas(canvas, 'snappass-printable-4x6.png');
 };
