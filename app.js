@@ -2,6 +2,7 @@ const country = document.querySelector('#country');
 const documentType = document.querySelector('#documentType');
 const requirementSummary = document.querySelector('#requirementSummary');
 const photoInput = document.querySelector('#photoInput');
+const photoStage = document.querySelector('#photoStage');
 const photoFrame = document.querySelector('#photoFrame');
 const photoPreview = document.querySelector('#photoPreview');
 const statusPill = document.querySelector('#statusPill');
@@ -31,7 +32,14 @@ const PRINT_SHEET_WIDTH = 1800;
 const PRINT_SHEET_HEIGHT = 1200;
 const PRINT_PREVIEW_WIDTH = 900;
 const PRINT_PREVIEW_HEIGHT = 600;
-const PRINT_SHEET_QUOTE = 'Great journeys start with a clear first step.';
+const PRINT_QUOTES = [
+  'Great journeys start with a clear first step.',
+  'Carry courage. The world is waiting.',
+  'Every document begins a new doorway.',
+  'Your next chapter deserves a clear picture.',
+  'Prepared today, ready tomorrow.',
+  'Small steps can open wide horizons.'
+];
 
 let currentImageFile = null;
 let currentPhotoDataUrl = '';
@@ -44,6 +52,7 @@ let currentAiFindings = {
   recommendedZoom: 100,
   recommendedRotation: 0
 };
+let currentPrintQuote = PRINT_QUOTES[0];
 let localImageFindings = {
   isHuman: true,
   warning: ''
@@ -118,6 +127,12 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.addEventListener('error', reject);
   reader.readAsDataURL(file);
 });
+
+const selectRandomQuote = () => {
+  const nextQuote = PRINT_QUOTES[Math.floor(Math.random() * PRINT_QUOTES.length)];
+  currentPrintQuote = nextQuote;
+  window.__snapPassQuote = currentPrintQuote;
+};
 
 const isSkinTone = (red, green, blue) => (
   red > 95 &&
@@ -464,6 +479,7 @@ const showLoadedState = async (file) => {
   currentImageFile = file;
   currentPhotoDataUrl = '';
   backgroundResultDataUrl = '';
+  selectRandomQuote();
   photoPreview.src = URL.createObjectURL(file);
   photoPreview.alt = `Preview of ${file.name}`;
   photoFrame.classList.add('has-photo');
@@ -506,6 +522,8 @@ const resetState = () => {
     recommendedZoom: 100,
     recommendedRotation: 0
   };
+  currentPrintQuote = PRINT_QUOTES[0];
+  window.__snapPassQuote = currentPrintQuote;
   localImageFindings = {
     isHuman: true,
     warning: ''
@@ -632,7 +650,7 @@ const drawPrintQuote = (context, scale = 1) => {
   context.fillStyle = '#10251f';
   context.textAlign = 'center';
   context.font = `${Math.max(16, 44 * scale)}px system-ui, sans-serif`;
-  context.fillText('"' + PRINT_SHEET_QUOTE + '"', quoteCenterX, quoteCenterY - 16 * scale, quoteWidth * 0.82);
+  context.fillText('"' + currentPrintQuote + '"', quoteCenterX, quoteCenterY - 16 * scale, quoteWidth * 0.82);
   context.fillStyle = '#167f63';
   context.font = `${Math.max(11, 22 * scale)}px system-ui, sans-serif`;
   context.fillText('SnapPass.me', quoteCenterX, quoteCenterY + 38 * scale, quoteWidth * 0.82);
@@ -731,6 +749,17 @@ photoInput.addEventListener('change', (event) => {
 zoomRange.addEventListener('input', updatePreviewTransform);
 rotateRange.addEventListener('input', updatePreviewTransform);
 backgroundMode.addEventListener('change', applyBackgroundMode);
+
+photoStage.addEventListener('click', () => {
+  photoInput.click();
+});
+
+photoStage.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    photoInput.click();
+  }
+});
 
 applySuggestionButton.addEventListener('click', () => {
   zoomRange.value = String(Math.min(140, Math.max(80, currentAiFindings.recommendedZoom || 100)));

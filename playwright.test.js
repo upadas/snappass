@@ -71,10 +71,15 @@ const run = async () => {
     const initial = await page.evaluate(() => ({
       title: document.querySelector('h1').textContent.trim(),
       exportHidden: document.querySelector('#exportPanel').hidden,
+      uploadButtonCount: Array.from(document.querySelectorAll('label[for="photoInput"]'))
+        .filter((label) => label.offsetParent !== null).length,
+      watermark: document.querySelector('#photoStage').textContent,
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1
     }));
     assert.match(initial.title, /Passport photos/);
     assert.equal(initial.exportHidden, true);
+    assert.equal(initial.uploadButtonCount, 1);
+    assert.match(initial.watermark, /Click to upload/);
     assert.equal(initial.overflow, false);
 
     await uploadSample(page);
@@ -86,6 +91,7 @@ const run = async () => {
       applySuggestionHidden: document.querySelector('#applySuggestionButton').hidden,
       printPreviewHidden: document.querySelector('#printPreviewPanel').hidden,
       printPreviewLabel: document.querySelector('.print-preview-header strong').textContent.trim(),
+      quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
     }));
@@ -96,6 +102,7 @@ const run = async () => {
     assert.equal(uploaded.applySuggestionHidden, false);
     assert.equal(uploaded.printPreviewHidden, false);
     assert.equal(uploaded.printPreviewLabel, '4 photos, 2 x 2 in each');
+    assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
 

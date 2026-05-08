@@ -18,6 +18,23 @@ test('page contains the approved SnapPass product shell', () => {
   assert.match(html, /id="exportPanel"/);
 });
 
+test('upload controls live beside the preview placeholder and placeholder uploads', () => {
+  const html = read('index.html');
+  const css = read('styles.css');
+  const js = read('app.js');
+
+  assert.match(html, /id="photoStage"/);
+  assert.match(html, /role="button"/);
+  assert.match(html, /Click to upload/);
+  assert.match(html, /Watermark/);
+  assert.match(html, /stage-actions/);
+  assert.doesNotMatch(html, /class="upload-actions"/);
+  assert.match(css, /\.stage-actions/);
+  assert.match(css, /\.upload-watermark/);
+  assert.match(js, /photoStage\.addEventListener\('click'/);
+  assert.match(js, /photoStage\.addEventListener\('keydown'/);
+});
+
 test('brand includes logo assets and favicon links', () => {
   const html = read('index.html');
   const logo = read('assets/logo.svg');
@@ -78,7 +95,8 @@ test('printable output uses a true 4x6 300 dpi sheet with live preview', () => {
   assert.match(js, /PRINT_SHEET_WIDTH\s*=\s*1800/);
   assert.match(js, /PRINT_SHEET_HEIGHT\s*=\s*1200/);
   assert.match(js, /PASSPORT_PHOTO_SIZE\s*=\s*600/);
-  assert.match(js, /PRINT_SHEET_QUOTE/);
+  assert.match(js, /PRINT_QUOTES/);
+  assert.match(js, /selectRandomQuote/);
   assert.match(js, /drawImageCover/);
   assert.match(js, /renderPrintSheetPreview/);
   assert.match(js, /getPrintSheetPositions/);
