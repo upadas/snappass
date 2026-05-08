@@ -90,10 +90,13 @@ const run = async () => {
       agentStatus: document.querySelector('#aiStatus').textContent.trim(),
       applySuggestionHidden: document.querySelector('#applySuggestionButton').hidden,
       printPreviewHidden: document.querySelector('#printPreviewPanel').hidden,
-      printPreviewDisplay: getComputedStyle(document.querySelector('#printPreviewPanel')).display,
+      printPreviewOpacity: getComputedStyle(document.querySelector('#printPreviewPanel')).opacity,
+      printPreviewVisibility: getComputedStyle(document.querySelector('#printPreviewPanel')).visibility,
       printPreviewLabel: document.querySelector('.print-preview-header strong').textContent.trim(),
       adjustmentParent: document.querySelector('#adjustmentPanel').parentElement.className,
-      setupAfterChecks: document.querySelector('.preview-side .checklist + .wizard-card') !== null,
+      setupBeforeChecks: document.querySelector('.preview-side .wizard-card + .checklist') !== null,
+      setupGridColumns: getComputedStyle(document.querySelector('.field-grid')).gridTemplateColumns.split(' ').length,
+      actionGridColumns: getComputedStyle(document.querySelector('.stage-actions')).gridTemplateColumns.split(' ').length,
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -104,17 +107,25 @@ const run = async () => {
     assert.equal(uploaded.agentStatus, 'AI preview');
     assert.equal(uploaded.applySuggestionHidden, false);
     assert.equal(uploaded.printPreviewHidden, false);
-    assert.equal(uploaded.printPreviewDisplay, 'none');
+    assert.equal(uploaded.printPreviewOpacity, '0');
+    assert.equal(uploaded.printPreviewVisibility, 'hidden');
     assert.equal(uploaded.printPreviewLabel, '4 photos, 2 x 2 in each');
     assert.equal(uploaded.adjustmentParent, 'preview-main');
-    assert.equal(uploaded.setupAfterChecks, true);
+    assert.equal(uploaded.setupBeforeChecks, true);
+    assert.equal(uploaded.setupGridColumns, 2);
+    assert.equal(uploaded.actionGridColumns, 2);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
 
     await page.hover('#photoFrame');
-    const hoveredPreviewDisplay = await page.evaluate(() => getComputedStyle(document.querySelector('#printPreviewPanel')).display);
-    assert.equal(hoveredPreviewDisplay, 'block');
+    const immediatePreview = await page.evaluate(() => ({
+      opacity: getComputedStyle(document.querySelector('#printPreviewPanel')).opacity,
+      visibility: getComputedStyle(document.querySelector('#printPreviewPanel')).visibility
+    }));
+    assert.equal(immediatePreview.opacity, '0');
+    assert.equal(immediatePreview.visibility, 'hidden');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#printPreviewPanel')).opacity === '1');
 
     await page.click('#applySuggestionButton');
     const appliedSuggestion = await page.evaluate(() => ({
