@@ -58,7 +58,9 @@ let previewPanY = 0;
 let dragState = null;
 let localImageFindings = {
   isHuman: true,
-  warning: ''
+  warning: '',
+  backgroundPlain: true,
+  lightingEven: true
 };
 
 const requirementCopy = {
@@ -161,6 +163,10 @@ const analyzePortraitPixels = () => {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
   let centralSkinPixels = 0;
   let centralPixels = 0;
+  let edgePixels = 0;
+  let plainEdgePixels = 0;
+  let brightnessTotal = 0;
+  let brightnessSquaredTotal = 0;
 
   for (let y = 12; y < 62; y += 1) {
     for (let x = 24; x < 72; x += 1) {
@@ -172,15 +178,45 @@ const analyzePortraitPixels = () => {
     }
   }
 
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const isEdge = x < 10 || x > 85 || y < 10 || y > 85;
+      if (!isEdge) {
+        continue;
+      }
+
+      const index = (y * canvas.width + x) * 4;
+      const red = imageData[index];
+      const green = imageData[index + 1];
+      const blue = imageData[index + 2];
+      const brightness = (red + green + blue) / 3;
+      const colorSpread = Math.max(red, green, blue) - Math.min(red, green, blue);
+      edgePixels += 1;
+      brightnessTotal += brightness;
+      brightnessSquaredTotal += brightness * brightness;
+      if (brightness > 212 && colorSpread < 34) {
+        plainEdgePixels += 1;
+      }
+    }
+  }
+
   const centralSkinRatio = centralSkinPixels / centralPixels;
+  const averageBrightness = brightnessTotal / edgePixels;
+  const brightnessVariance = Math.max(0, (brightnessSquaredTotal / edgePixels) - (averageBrightness * averageBrightness));
+  const brightnessStdDev = Math.sqrt(brightnessVariance);
+  const backgroundPlain = plainEdgePixels / edgePixels > 0.58;
+  const lightingEven = averageBrightness > 150 && averageBrightness < 248 && brightnessStdDev < 48;
+
   if (centralSkinRatio < 0.08) {
     return {
       isHuman: false,
-      warning: 'No clear human face area detected. Upload a front-facing portrait of one person.'
+      warning: 'No clear human face area detected. Upload a front-facing portrait of one person.',
+      backgroundPlain,
+      lightingEven
     };
   }
 
-  return { isHuman: true, warning: '' };
+  return { isHuman: true, warning: '', backgroundPlain, lightingEven };
 };
 
 const mergeLocalImageFindings = (analysis) => {
@@ -202,9 +238,9 @@ const mergeLocalImageFindings = (analysis) => {
 const runAiAssessment = (file) => {
   const name = file.name.toLowerCase();
   const isLikelyNotHuman = /object|pet|car|vehicle|logo|document|landscape|room|food/.test(name) || !localImageFindings.isHuman;
-  const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name);
+  const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name) || !localImageFindings.lightingEven;
   const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
-  const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
+  const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name) || !localImageFindings.backgroundPlain;
 
   currentAiFindings = {
     hasHeadIssue,
@@ -428,8 +464,14 @@ const applyBackgroundMode = () => {
   }
 
   if (selectedBackgroundMode === 'keep-original') {
+    if (localImageFindings.backgroundPlain) {
+      setChecklistItem('background', 'pass', 'Background: plain white');
+      setAiCheck('background', 'pass', 'Background appears plain white or off-white.');
+      return;
+    }
+
     setChecklistItem('background', 'warning', 'Background needs review');
-    setAiCheck('background', 'warning', 'Original background is kept. Confirm it is plain white or off-white.');
+    setAiCheck('background', 'warning', 'Original background may not be plain white or off-white.');
     return;
   }
 
@@ -448,8 +490,8 @@ const evaluateCropFit = () => {
   const zoom = Number(zoomRange.value);
   const rotate = Math.abs(Number(rotateRange.value));
   const pan = Math.max(Math.abs(previewPanX), Math.abs(previewPanY));
-  const isDanger = zoom < 88 || zoom > 132 || rotate > 6 || pan > 18;
-  const isWarning = !isDanger && (zoom < 94 || zoom > 120 || rotate > 3 || pan > 10);
+  const isDanger = zoom < 84 || zoom > 138 || rotate > 7 || pan > 24;
+  const isWarning = !isDanger && (zoom < 90 || zoom > 128 || rotate > 4 || pan > 18);
 
   statusPill.classList.toggle('is-danger', isDanger);
   statusPill.classList.toggle('is-warning', isWarning && !isDanger);
@@ -535,7 +577,9 @@ const resetState = () => {
   dragState = null;
   localImageFindings = {
     isHuman: true,
-    warning: ''
+    warning: '',
+    backgroundPlain: true,
+    lightingEven: true
   };
   photoInput.value = '';
   photoPreview.removeAttribute('src');

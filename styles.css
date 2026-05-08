@@ -534,31 +534,34 @@ h1 {
 }
 
 .crop-guide::before {
-  top: 16%;
-  width: 38%;
-  height: 28%;
-  border: 1px solid rgba(22, 127, 99, 0.6);
+  top: 12%;
+  width: 33%;
+  height: 25%;
+  border: 1px solid rgba(22, 127, 99, 0.62);
   border-radius: 50%;
-  background: rgba(22, 127, 99, 0.04);
+  background: rgba(22, 127, 99, 0.035);
 }
 
 .crop-guide::after {
-  top: 56%;
-  width: 62%;
-  border-top: 1px solid rgba(22, 127, 99, 0.6);
-  box-shadow: 0 26px 0 rgba(22, 127, 99, 0.35);
+  top: 43%;
+  width: 66%;
+  height: 38%;
+  border: 1px solid rgba(22, 127, 99, 0.56);
+  border-bottom: 0;
+  border-radius: 48% 48% 0 0;
+  background: linear-gradient(180deg, rgba(22, 127, 99, 0.035), transparent 72%);
 }
 
 .checklist {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
-  justify-items: start;
+  justify-items: stretch;
   align-content: start;
-  justify-self: end;
 }
 
 .check-item {
-  width: max-content;
+  width: 100%;
   max-width: 100%;
   display: flex;
   align-items: center;
@@ -571,6 +574,13 @@ h1 {
   font-size: 0.84rem;
   line-height: 1.25;
   font-weight: 720;
+}
+
+.check-item:nth-child(5) {
+  grid-column: span 2;
+  width: max-content;
+  min-width: min(100%, 164px);
+  justify-self: start;
 }
 
 .check-item span {

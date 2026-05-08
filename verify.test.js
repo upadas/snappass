@@ -136,6 +136,7 @@ test('zoom and rotation update crop fit warnings', () => {
   assert.match(js, /previewPanX/);
   assert.match(js, /photoFrame\.addEventListener\('pointerdown'/);
   assert.match(css, /--preview-pan-x/);
+  assert.match(css, /border-radius:\s*48% 48% 0 0/);
 });
 
 test('background replacement controls are available and affect exports', () => {
@@ -152,6 +153,8 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(js, /selectedBackgroundMode/);
   assert.match(js, /fillCanvasBackground/);
   assert.match(js, /OPENAI_API_KEY|backgroundResultDataUrl/);
+  assert.match(js, /backgroundPlain/);
+  assert.match(js, /lightingEven/);
   assert.doesNotMatch(js, /drawMaskedSubject/);
   assert.doesNotMatch(css, /subject-mask img/);
   assert.match(playwrightTest, /backgroundMode/);

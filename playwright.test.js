@@ -97,6 +97,7 @@ const run = async () => {
       setupBeforeChecks: document.querySelector('.preview-side .wizard-card + .checklist') !== null,
       setupGridColumns: getComputedStyle(document.querySelector('.field-grid')).gridTemplateColumns.split(' ').length,
       actionGridColumns: getComputedStyle(document.querySelector('.stage-actions')).gridTemplateColumns.split(' ').length,
+      checklistColumns: getComputedStyle(document.querySelector('.checklist')).gridTemplateColumns.split(' ').length,
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -114,6 +115,7 @@ const run = async () => {
     assert.equal(uploaded.setupBeforeChecks, true);
     assert.equal(uploaded.setupGridColumns, 2);
     assert.equal(uploaded.actionGridColumns, 2);
+    assert.equal(uploaded.checklistColumns, 2);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
