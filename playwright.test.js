@@ -93,6 +93,7 @@ const run = async () => {
       printPreviewDisplay: getComputedStyle(document.querySelector('#printPreviewPanel')).display,
       printPreviewLabel: document.querySelector('.print-preview-header strong').textContent.trim(),
       adjustmentParent: document.querySelector('#adjustmentPanel').parentElement.className,
+      setupAfterChecks: document.querySelector('.preview-side .checklist + .wizard-card') !== null,
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -106,6 +107,7 @@ const run = async () => {
     assert.equal(uploaded.printPreviewDisplay, 'none');
     assert.equal(uploaded.printPreviewLabel, '4 photos, 2 x 2 in each');
     assert.equal(uploaded.adjustmentParent, 'preview-main');
+    assert.equal(uploaded.setupAfterChecks, true);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
@@ -122,20 +124,36 @@ const run = async () => {
     assert.equal(appliedSuggestion.zoom, '100');
     assert.equal(appliedSuggestion.rotate, '0');
 
+    const beforeDragTransform = await page.locator('#photoPreview').evaluate((element) => getComputedStyle(element).transform);
+    const frameBox = await page.locator('#photoFrame').boundingBox();
+    await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(frameBox.x + frameBox.width / 2 + 42, frameBox.y + frameBox.height / 2 + 24, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction((previousTransform) => (
+      getComputedStyle(document.querySelector('#photoPreview')).transform !== previousTransform
+    ), beforeDragTransform);
+    const afterDrag = await page.locator('#photoPreview').evaluate((element) => ({
+      transform: getComputedStyle(element).transform,
+      status: document.querySelector('#statusPill').textContent.trim()
+    }));
+    assert.notEqual(afterDrag.transform, beforeDragTransform);
+    assert.match(afterDrag.status, /Preview ready|Adjust crop|Fix crop/);
+
     await page.selectOption('#backgroundMode', 'replace-white');
-    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('server fallback'));
+    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('server API key'));
     const backgroundState = await page.evaluate(() => ({
       mode: document.querySelector('#backgroundMode').value,
       whitePreview: document.querySelector('#photoFrame').classList.contains('background-white'),
-      subjectMask: document.querySelector('#photoFrame').classList.contains('subject-mask'),
+      destructiveMask: document.querySelector('#photoFrame').classList.contains('subject-mask'),
       backgroundText: document.querySelector('[data-check="background"]').textContent.trim(),
       backgroundNote: document.querySelector('#backgroundNote').textContent.trim()
     }));
     assert.equal(backgroundState.mode, 'replace-white');
     assert.equal(backgroundState.whitePreview, true);
-    assert.equal(backgroundState.subjectMask, true);
+    assert.equal(backgroundState.destructiveMask, false);
     assert.equal(backgroundState.backgroundText, 'Background: plain white');
-    assert.match(backgroundState.backgroundNote, /server fallback/);
+    assert.match(backgroundState.backgroundNote, /server API key/);
 
     await page.locator('#zoomRange').evaluate((element) => {
       element.value = '80';

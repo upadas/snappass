@@ -122,12 +122,16 @@ test('working panel keeps upload, AI status, and print preview close together', 
 
 test('zoom and rotation update crop fit warnings', () => {
   const js = read('app.js');
+  const css = read('styles.css');
 
   assert.match(js, /evaluateCropFit/);
   assert.match(js, /setChecklistItem\('head'/);
   assert.match(js, /statusPill\.classList\.toggle\('is-danger'/);
   assert.match(js, /zoomRange\.addEventListener\('input', updatePreviewTransform\)/);
   assert.match(js, /rotateRange\.addEventListener\('input', updatePreviewTransform\)/);
+  assert.match(js, /previewPanX/);
+  assert.match(js, /photoFrame\.addEventListener\('pointerdown'/);
+  assert.match(css, /--preview-pan-x/);
 });
 
 test('background replacement controls are available and affect exports', () => {
@@ -143,11 +147,12 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(js, /applyBackgroundMode/);
   assert.match(js, /selectedBackgroundMode/);
   assert.match(js, /fillCanvasBackground/);
-  assert.match(js, /drawMaskedSubject/);
-  assert.match(css, /subject-mask/);
+  assert.match(js, /OPENAI_API_KEY|backgroundResultDataUrl/);
+  assert.doesNotMatch(js, /drawMaskedSubject/);
+  assert.doesNotMatch(css, /subject-mask img/);
   assert.match(playwrightTest, /backgroundMode/);
   assert.match(playwrightTest, /replace-white/);
-  assert.match(playwrightTest, /subjectMask/);
+  assert.match(playwrightTest, /destructiveMask/);
 });
 
 test('prototype includes AI assessment checks for human subject, lighting, and head position', () => {

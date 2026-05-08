@@ -53,6 +53,9 @@ let currentAiFindings = {
   recommendedRotation: 0
 };
 let currentPrintQuote = PRINT_QUOTES[0];
+let previewPanX = 0;
+let previewPanY = 0;
+let dragState = null;
 let localImageFindings = {
   isHuman: true,
   warning: ''
@@ -350,6 +353,8 @@ const updatePreviewTransform = () => {
   rotateValue.textContent = `${rotate}°`;
   photoFrame.style.setProperty('--preview-zoom', String(zoom / 100));
   photoFrame.style.setProperty('--preview-rotate', `${rotate}deg`);
+  photoFrame.style.setProperty('--preview-pan-x', `${previewPanX}%`);
+  photoFrame.style.setProperty('--preview-pan-y', `${previewPanY}%`);
   evaluateCropFit();
   renderPrintSheetPreview();
 };
@@ -386,15 +391,15 @@ const requestBackgroundEdit = async () => {
       return;
     }
 
-    photoFrame.classList.add('subject-mask');
-    backgroundNote.textContent = result.message || 'Using server fallback mask.';
+    photoFrame.classList.remove('subject-mask');
+    backgroundNote.textContent = result.message || 'AI cleanup needs a server API key. Preview keeps the photo intact instead of masking over the subject.';
   } catch {
     if (requestId !== backgroundRequestId || !currentImageFile) {
       return;
     }
     backgroundResultDataUrl = '';
-    photoFrame.classList.add('subject-mask');
-    backgroundNote.textContent = 'Using server fallback mask because AI cleanup is unavailable.';
+    photoFrame.classList.remove('subject-mask');
+    backgroundNote.textContent = 'AI cleanup is unavailable. Preview keeps the photo intact instead of masking over the subject.';
   }
 };
 
@@ -407,13 +412,13 @@ const applyBackgroundMode = () => {
   }
   photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
   photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
-  photoFrame.classList.toggle('subject-mask', selectedBackgroundMode !== 'keep-original');
+  photoFrame.classList.remove('subject-mask');
   renderPrintSheetPreview();
 
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
-    'replace-white': 'Preview replaces the backdrop with white while preserving the face area.',
-    'ai-cleanup': 'AI cleanup preview would remove background objects without changing facial features.'
+    'replace-white': 'AI will replace only the background with white when the server API key is configured.',
+    'ai-cleanup': 'AI cleanup removes background objects and advises photo fixes without changing facial features.'
   };
 
   backgroundNote.textContent = backgroundMessages[selectedBackgroundMode];
@@ -442,8 +447,9 @@ const evaluateCropFit = () => {
 
   const zoom = Number(zoomRange.value);
   const rotate = Math.abs(Number(rotateRange.value));
-  const isDanger = zoom < 88 || zoom > 132 || rotate > 6;
-  const isWarning = !isDanger && (zoom < 94 || zoom > 120 || rotate > 3);
+  const pan = Math.max(Math.abs(previewPanX), Math.abs(previewPanY));
+  const isDanger = zoom < 88 || zoom > 132 || rotate > 6 || pan > 18;
+  const isWarning = !isDanger && (zoom < 94 || zoom > 120 || rotate > 3 || pan > 10);
 
   statusPill.classList.toggle('is-danger', isDanger);
   statusPill.classList.toggle('is-warning', isWarning && !isDanger);
@@ -451,14 +457,14 @@ const evaluateCropFit = () => {
   if (isDanger) {
     statusPill.textContent = 'Fix crop';
     setChecklistItem('head', 'danger', 'Headshot out of range');
-    setAiCheck('head', 'warning', 'Head size or rotation is outside the passport guide. Adjust zoom/rotate before export.');
+    setAiCheck('head', 'warning', 'Head size, rotation, or position is outside the passport guide. Drag, zoom, or rotate before export.');
     return;
   }
 
   if (isWarning) {
     statusPill.textContent = 'Adjust crop';
     setChecklistItem('head', 'warning', 'Headshot needs adjustment');
-    setAiCheck('head', 'warning', 'Head is close, but zoom or rotation may need a small adjustment.');
+    setAiCheck('head', 'warning', 'Head is close, but position, zoom, or rotation may need a small adjustment.');
     return;
   }
 
@@ -524,6 +530,9 @@ const resetState = () => {
   };
   currentPrintQuote = PRINT_QUOTES[0];
   window.__snapPassQuote = currentPrintQuote;
+  previewPanX = 0;
+  previewPanY = 0;
+  dragState = null;
   localImageFindings = {
     isHuman: true,
     warning: ''
@@ -532,7 +541,7 @@ const resetState = () => {
   photoPreview.removeAttribute('src');
   photoPreview.alt = '';
   photoFrame.classList.remove('has-photo');
-  photoFrame.classList.remove('background-white', 'background-soft-white', 'subject-mask');
+  photoFrame.classList.remove('background-white', 'background-soft-white', 'subject-mask', 'is-dragging');
   adjustmentPanel.hidden = true;
   exportPanel.hidden = true;
   printPreviewPanel.hidden = true;
@@ -553,23 +562,6 @@ const fillCanvasBackground = (context, canvas) => {
   context.fillRect(0, 0, canvas.width, canvas.height);
 };
 
-const drawMaskedSubject = (context, canvas, drawSubject) => {
-  context.save();
-  context.beginPath();
-  context.ellipse(
-    canvas.width / 2,
-    canvas.height * 0.48,
-    canvas.width * 0.34,
-    canvas.height * 0.45,
-    0,
-    0,
-    Math.PI * 2
-  );
-  context.clip();
-  drawSubject();
-  context.restore();
-};
-
 const drawPhotoToCanvas = (canvas, options = {}) => {
   const context = canvas.getContext('2d');
   const zoom = Number(zoomRange.value) / 100;
@@ -579,22 +571,10 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   fillCanvasBackground(context, canvas);
 
   context.save();
-  const shouldMaskSubject = selectedBackgroundMode !== 'keep-original' && !backgroundResultDataUrl;
-  if (shouldMaskSubject) {
-    context.beginPath();
-    context.ellipse(
-      canvas.width / 2,
-      canvas.height * 0.48,
-      canvas.width * 0.34,
-      canvas.height * 0.45,
-      0,
-      0,
-      Math.PI * 2
-    );
-    context.clip();
-  }
-
-  context.translate(canvas.width / 2, canvas.height / 2);
+  context.translate(
+    canvas.width / 2 + (canvas.width * previewPanX / 100),
+    canvas.height / 2 + (canvas.height * previewPanY / 100)
+  );
   context.rotate(rotate);
   context.scale(zoom, zoom);
 
@@ -751,7 +731,9 @@ rotateRange.addEventListener('input', updatePreviewTransform);
 backgroundMode.addEventListener('change', applyBackgroundMode);
 
 photoStage.addEventListener('click', () => {
-  photoInput.click();
+  if (!currentImageFile) {
+    photoInput.click();
+  }
 });
 
 photoStage.addEventListener('keydown', (event) => {
@@ -764,8 +746,55 @@ photoStage.addEventListener('keydown', (event) => {
 applySuggestionButton.addEventListener('click', () => {
   zoomRange.value = String(Math.min(140, Math.max(80, currentAiFindings.recommendedZoom || 100)));
   rotateRange.value = String(Math.min(8, Math.max(-8, currentAiFindings.recommendedRotation || 0)));
+  previewPanX = 0;
+  previewPanY = 0;
   updatePreviewTransform();
 });
+
+photoFrame.addEventListener('pointerdown', (event) => {
+  if (!currentImageFile) {
+    return;
+  }
+
+  event.preventDefault();
+  dragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    panX: previewPanX,
+    panY: previewPanY
+  };
+  photoFrame.classList.add('is-dragging');
+  photoFrame.setPointerCapture(event.pointerId);
+});
+
+photoFrame.addEventListener('pointermove', (event) => {
+  if (!dragState || dragState.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const bounds = photoFrame.getBoundingClientRect();
+  const nextPanX = dragState.panX + ((event.clientX - dragState.startX) / bounds.width) * 100;
+  const nextPanY = dragState.panY + ((event.clientY - dragState.startY) / bounds.height) * 100;
+  previewPanX = Math.min(24, Math.max(-24, nextPanX));
+  previewPanY = Math.min(24, Math.max(-24, nextPanY));
+  updatePreviewTransform();
+});
+
+const stopPreviewDrag = (event) => {
+  if (!dragState || dragState.pointerId !== event.pointerId) {
+    return;
+  }
+
+  dragState = null;
+  photoFrame.classList.remove('is-dragging');
+  if (photoFrame.hasPointerCapture(event.pointerId)) {
+    photoFrame.releasePointerCapture(event.pointerId);
+  }
+};
+
+photoFrame.addEventListener('pointerup', stopPreviewDrag);
+photoFrame.addEventListener('pointercancel', stopPreviewDrag);
 
 resetButton.addEventListener('click', resetState);
 downloadDigitalButton.addEventListener('click', downloadDigitalPhoto);

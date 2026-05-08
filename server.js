@@ -241,7 +241,7 @@ const handleBackground = async (request, response) => {
       sendJson(response, 200, {
         mode: 'server fallback',
         imageDataUrl: null,
-        message: 'Using server fallback mask. Set OPENAI_API_KEY to run real background cleanup.'
+        message: 'Set the server API key to run real AI background replacement. SnapPass keeps the photo intact instead of applying a destructive mask.'
       });
       return;
     }
@@ -256,7 +256,7 @@ const handleBackground = async (request, response) => {
     sendJson(response, 200, {
       mode: 'server fallback',
       imageDataUrl: null,
-      message: `Using server fallback mask because AI cleanup failed: ${error.message}`
+      message: `AI cleanup failed, so SnapPass kept the photo intact instead of applying a destructive mask: ${error.message}`
     });
   }
 };
