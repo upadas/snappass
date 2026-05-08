@@ -26,7 +26,7 @@ test('upload controls live beside the preview placeholder and placeholder upload
   assert.match(html, /id="photoStage"/);
   assert.match(html, /role="button"/);
   assert.match(html, /Click to upload/);
-  assert.match(html, /Watermark/);
+  assert.doesNotMatch(html, /Watermark/);
   assert.match(html, /stage-actions/);
   assert.doesNotMatch(html, /class="upload-actions"/);
   assert.match(css, /\.stage-actions/);
