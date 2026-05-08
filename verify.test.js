@@ -120,12 +120,14 @@ test('working panel keeps upload, AI status, and print preview close together', 
   assert.match(html, /class="adjustment-panel" id="adjustmentPanel" hidden[\s\S]*id="zoomRange"[\s\S]*id="rotateRange"/);
   assert.match(css, /\.preview-upload-actions/);
   assert.match(css, /\.photo-stage:hover \.print-preview-popover:not\(\[hidden\]\)/);
+  assert.match(css, /left:\s*calc\(100% \+ 18px\)/);
   assert.match(css, /transition:\s*opacity 180ms ease 1s/);
   assert.match(css, /\.preview-main/);
   assert.doesNotMatch(html, /class="crop-guide"/);
   assert.doesNotMatch(css, /\.crop-guide/);
   assert.match(html, /agent-prep/);
   assert.match(css, /\.agent-prep/);
+  assert.match(css, /aspect-ratio:\s*1 \/ 1/);
   assert.match(css, /max-height:\s*calc\(100vh - 96px\)/);
 });
 
@@ -150,10 +152,15 @@ test('background replacement controls are available and affect exports', () => {
   const playwrightTest = read('playwright.test.js');
 
   assert.match(html, /id="backgroundMode"/);
+  assert.match(html, /id="lightingMode"/);
   assert.match(html, /Replace with white/);
   assert.match(html, /AI cleanup preview/);
+  assert.match(html, /Auto enhance lighting/);
   assert.match(js, /backgroundMode\.addEventListener\('change'/);
+  assert.match(js, /lightingMode\.addEventListener\('change'/);
   assert.match(js, /applyBackgroundMode/);
+  assert.match(js, /applyLightingMode/);
+  assert.match(js, /processPhotoDataUrl/);
   assert.match(js, /selectedBackgroundMode/);
   assert.match(js, /fillCanvasBackground/);
   assert.match(js, /OPENAI_API_KEY|backgroundResultDataUrl/);

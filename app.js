@@ -22,6 +22,7 @@ const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
 const downloadPrintButton = document.querySelector('#downloadPrintButton');
 const backgroundMode = document.querySelector('#backgroundMode');
 const backgroundNote = document.querySelector('#backgroundNote');
+const lightingMode = document.querySelector('#lightingMode');
 const applySuggestionButton = document.querySelector('#applySuggestionButton');
 const printPreviewPanel = document.querySelector('#printPreviewPanel');
 const printSheetPreview = document.querySelector('#printSheetPreview');
@@ -44,9 +45,11 @@ const PRINT_QUOTES = [
 let currentImageFile = null;
 let currentPhotoDataUrl = '';
 let backgroundResultDataUrl = '';
+let processedPhotoDataUrl = '';
 let selectedBackgroundMode = 'keep-original';
 let analysisRequestId = 0;
 let backgroundRequestId = 0;
+let processingRequestId = 0;
 let currentAiFindings = {
   hasHeadIssue: false,
   recommendedZoom: 100,
@@ -395,6 +398,114 @@ const updatePreviewTransform = () => {
   renderPrintSheetPreview();
 };
 
+const loadImage = (src) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.addEventListener('load', () => resolve(image));
+  image.addEventListener('error', reject);
+  image.src = src;
+});
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const processPhotoDataUrl = async (sourceDataUrl) => {
+  const shouldReplaceBackground = selectedBackgroundMode !== 'keep-original';
+  const shouldEnhanceLighting = lightingMode.value === 'auto-enhance' || selectedBackgroundMode === 'ai-cleanup';
+  if (!shouldReplaceBackground && !shouldEnhanceLighting) {
+    return sourceDataUrl;
+  }
+
+  const image = await loadImage(sourceDataUrl);
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  context.drawImage(image, 0, 0);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+  const edgeSamples = [];
+  const sampleStep = Math.max(1, Math.floor(Math.min(canvas.width, canvas.height) / 80));
+
+  for (let y = 0; y < canvas.height; y += sampleStep) {
+    for (let x = 0; x < canvas.width; x += sampleStep) {
+      const isEdge = x < canvas.width * 0.12 || x > canvas.width * 0.88 || y < canvas.height * 0.12 || y > canvas.height * 0.88;
+      if (!isEdge) {
+        continue;
+      }
+      const index = (y * canvas.width + x) * 4;
+      edgeSamples.push([pixels[index], pixels[index + 1], pixels[index + 2]]);
+    }
+  }
+
+  const edgeAverage = edgeSamples.reduce((sum, color) => [
+    sum[0] + color[0],
+    sum[1] + color[1],
+    sum[2] + color[2]
+  ], [0, 0, 0]).map((value) => value / Math.max(1, edgeSamples.length));
+
+  let brightnessTotal = 0;
+  for (let index = 0; index < pixels.length; index += 4) {
+    brightnessTotal += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3;
+  }
+  const averageBrightness = brightnessTotal / (pixels.length / 4);
+  const lift = shouldEnhanceLighting ? clamp(188 - averageBrightness, -18, 30) : 0;
+  const contrast = shouldEnhanceLighting ? 1.06 : 1;
+
+  for (let index = 0; index < pixels.length; index += 4) {
+    const red = pixels[index];
+    const green = pixels[index + 1];
+    const blue = pixels[index + 2];
+    const brightness = (red + green + blue) / 3;
+    const colorSpread = Math.max(red, green, blue) - Math.min(red, green, blue);
+    const edgeDistance = Math.hypot(red - edgeAverage[0], green - edgeAverage[1], blue - edgeAverage[2]);
+    const looksLikeBackground = shouldReplaceBackground && (
+      edgeDistance < 62 ||
+      (brightness > 208 && colorSpread < 42)
+    );
+
+    if (looksLikeBackground) {
+      pixels[index] = selectedBackgroundMode === 'ai-cleanup' ? 250 : 255;
+      pixels[index + 1] = selectedBackgroundMode === 'ai-cleanup' ? 250 : 255;
+      pixels[index + 2] = selectedBackgroundMode === 'ai-cleanup' ? 246 : 255;
+      continue;
+    }
+
+    if (shouldEnhanceLighting) {
+      pixels[index] = clamp((red - 128) * contrast + 128 + lift, 0, 255);
+      pixels[index + 1] = clamp((green - 128) * contrast + 128 + lift, 0, 255);
+      pixels[index + 2] = clamp((blue - 128) * contrast + 128 + lift, 0, 255);
+    }
+  }
+
+  context.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
+};
+
+const applyClientPhotoProcessing = async () => {
+  if (!currentPhotoDataUrl) {
+    return;
+  }
+
+  const requestId = ++processingRequestId;
+  const sourceDataUrl = backgroundResultDataUrl || currentPhotoDataUrl;
+  try {
+    processedPhotoDataUrl = await processPhotoDataUrl(sourceDataUrl);
+    if (requestId !== processingRequestId || !currentImageFile) {
+      return;
+    }
+    photoPreview.src = processedPhotoDataUrl;
+    await photoPreview.decode();
+    renderPrintSheetPreview();
+  } catch {
+    if (requestId !== processingRequestId || !currentImageFile) {
+      return;
+    }
+    processedPhotoDataUrl = sourceDataUrl;
+    photoPreview.src = sourceDataUrl;
+    renderPrintSheetPreview();
+  }
+};
+
 const requestBackgroundEdit = async () => {
   if (!currentImageFile || !currentPhotoDataUrl || selectedBackgroundMode === 'keep-original') {
     return;
@@ -421,31 +532,31 @@ const requestBackgroundEdit = async () => {
 
     backgroundResultDataUrl = result.imageDataUrl || '';
     if (backgroundResultDataUrl) {
-      photoPreview.src = backgroundResultDataUrl;
       photoFrame.classList.remove('subject-mask');
       backgroundNote.textContent = result.message || 'AI background cleanup applied.';
+      applyClientPhotoProcessing();
       return;
     }
 
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = result.message || 'AI cleanup needs a server API key. Preview keeps the photo intact instead of masking over the subject.';
+    backgroundNote.textContent = result.message || 'AI cleanup needs a server API key. Using local background/lighting cleanup without masking over the subject.';
+    applyClientPhotoProcessing();
   } catch {
     if (requestId !== backgroundRequestId || !currentImageFile) {
       return;
     }
     backgroundResultDataUrl = '';
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = 'AI cleanup is unavailable. Preview keeps the photo intact instead of masking over the subject.';
+    backgroundNote.textContent = 'AI cleanup is unavailable. Using local background/lighting cleanup without masking over the subject.';
+    applyClientPhotoProcessing();
   }
 };
 
 const applyBackgroundMode = () => {
   selectedBackgroundMode = backgroundMode.value;
   backgroundRequestId += 1;
+  processingRequestId += 1;
   backgroundResultDataUrl = '';
-  if (currentPhotoDataUrl) {
-    photoPreview.src = currentPhotoDataUrl;
-  }
   photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
   photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
   photoFrame.classList.remove('subject-mask');
@@ -453,8 +564,8 @@ const applyBackgroundMode = () => {
 
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
-    'replace-white': 'AI will replace only the background with white when the server API key is configured.',
-    'ai-cleanup': 'AI cleanup removes background objects and advises photo fixes without changing facial features.'
+    'replace-white': 'Replacing likely background pixels with white locally. Server AI can refine this when configured.',
+    'ai-cleanup': 'Cleaning likely background pixels and gently enhancing light while preserving facial features.'
   };
 
   backgroundNote.textContent = backgroundMessages[selectedBackgroundMode];
@@ -462,6 +573,8 @@ const applyBackgroundMode = () => {
   if (!currentImageFile) {
     return;
   }
+
+  applyClientPhotoProcessing();
 
   if (selectedBackgroundMode === 'keep-original') {
     if (localImageFindings.backgroundPlain) {
@@ -480,6 +593,25 @@ const applyBackgroundMode = () => {
     ? 'AI cleanup preview removes background clutter while preserving facial features.'
     : 'Background will export as white.');
   requestBackgroundEdit();
+};
+
+const applyLightingMode = () => {
+  if (!currentImageFile) {
+    return;
+  }
+
+  if (lightingMode.value === 'auto-enhance') {
+    setChecklistItem('lighting', 'pass', 'Lighting enhanced');
+    setAiCheck('lighting', 'pass', 'Lighting is gently balanced while preserving the original face.');
+    if (selectedBackgroundMode === 'keep-original') {
+      backgroundNote.textContent = 'Auto lighting is on. The exported photo uses a gentle brightness and contrast balance.';
+    }
+  } else if (localImageFindings.lightingEven) {
+    setChecklistItem('lighting', 'pass', 'Lighting looks good');
+    setAiCheck('lighting', 'pass', 'Lighting appears even enough for preview.');
+  }
+
+  applyClientPhotoProcessing();
 };
 
 const evaluateCropFit = () => {
@@ -527,6 +659,7 @@ const showLoadedState = async (file) => {
   currentImageFile = file;
   currentPhotoDataUrl = '';
   backgroundResultDataUrl = '';
+  processedPhotoDataUrl = '';
   selectRandomQuote();
   photoPreview.src = URL.createObjectURL(file);
   photoPreview.alt = `Preview of ${file.name}`;
@@ -551,6 +684,7 @@ const showLoadedState = async (file) => {
     await photoPreview.decode();
     localImageFindings = analyzePortraitPixels();
     applyBackgroundMode();
+    applyLightingMode();
     runAiAssessment(file);
     await requestPhotoAnalysis(file);
   } catch {
@@ -562,9 +696,11 @@ const resetState = () => {
   currentImageFile = null;
   currentPhotoDataUrl = '';
   backgroundResultDataUrl = '';
+  processedPhotoDataUrl = '';
   selectedBackgroundMode = 'keep-original';
   analysisRequestId += 1;
   backgroundRequestId += 1;
+  processingRequestId += 1;
   currentAiFindings = {
     hasHeadIssue: false,
     recommendedZoom: 100,
@@ -592,6 +728,7 @@ const resetState = () => {
   zoomRange.value = '100';
   rotateRange.value = '0';
   backgroundMode.value = 'keep-original';
+  lightingMode.value = 'keep-original';
   applyBackgroundMode();
   statusPill.textContent = 'Ready';
   statusPill.classList.remove('is-warning', 'is-danger');
@@ -773,6 +910,7 @@ photoInput.addEventListener('change', (event) => {
 zoomRange.addEventListener('input', updatePreviewTransform);
 rotateRange.addEventListener('input', updatePreviewTransform);
 backgroundMode.addEventListener('change', applyBackgroundMode);
+lightingMode.addEventListener('change', applyLightingMode);
 
 photoStage.addEventListener('click', () => {
   if (!currentImageFile) {

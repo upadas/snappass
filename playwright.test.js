@@ -100,6 +100,7 @@ const run = async () => {
       checklistColumns: getComputedStyle(document.querySelector('.checklist')).gridTemplateColumns.split(' ').length,
       cropGuideRemoved: document.querySelector('.crop-guide') === null,
       prepStepCount: document.querySelectorAll('.agent-prep div').length,
+      frameAspect: Math.round(document.querySelector('#photoFrame').getBoundingClientRect().width) === Math.round(document.querySelector('#photoFrame').getBoundingClientRect().height),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -120,6 +121,7 @@ const run = async () => {
     assert.equal(uploaded.checklistColumns, 2);
     assert.equal(uploaded.cropGuideRemoved, true);
     assert.equal(uploaded.prepStepCount, 4);
+    assert.equal(uploaded.frameAspect, true);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
@@ -132,6 +134,16 @@ const run = async () => {
     assert.equal(immediatePreview.opacity, '0');
     assert.equal(immediatePreview.visibility, 'hidden');
     await page.waitForFunction(() => getComputedStyle(document.querySelector('#printPreviewPanel')).opacity === '1');
+    const popoverPosition = await page.evaluate(() => {
+      const frame = document.querySelector('#photoFrame').getBoundingClientRect();
+      const popover = document.querySelector('#printPreviewPanel').getBoundingClientRect();
+      return {
+        clearOfFrame: popover.left > frame.right,
+        popoverWidth: Math.round(popover.width)
+      };
+    });
+    assert.equal(popoverPosition.clearOfFrame, true);
+    assert.ok(popoverPosition.popoverWidth >= 360);
 
     await page.click('#applySuggestionButton');
     const appliedSuggestion = await page.evaluate(() => ({
@@ -171,6 +183,17 @@ const run = async () => {
     assert.equal(backgroundState.destructiveMask, false);
     assert.equal(backgroundState.backgroundText, 'Background: plain white');
     assert.match(backgroundState.backgroundNote, /server API key/);
+
+    await page.selectOption('#lightingMode', 'auto-enhance');
+    await page.waitForFunction(() => document.querySelector('[data-check="lighting"]').textContent.includes('Lighting enhanced'));
+    const lightingState = await page.evaluate(() => ({
+      mode: document.querySelector('#lightingMode').value,
+      lightingText: document.querySelector('[data-check="lighting"]').textContent.trim(),
+      processedSource: document.querySelector('#photoPreview').src.startsWith('data:image/png')
+    }));
+    assert.equal(lightingState.mode, 'auto-enhance');
+    assert.equal(lightingState.lightingText, 'Lighting enhanced');
+    assert.equal(lightingState.processedSource, true);
 
     await page.locator('#zoomRange').evaluate((element) => {
       element.value = '80';

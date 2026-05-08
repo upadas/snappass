@@ -408,7 +408,7 @@ h1 {
 .photo-frame {
   position: relative;
   width: min(68%, 230px);
-  aspect-ratio: 1 / 1.28;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   border: 1px solid #b8cbc3;
   border-radius: 4px;
@@ -843,10 +843,10 @@ h1 {
 .print-preview-popover {
   position: absolute;
   z-index: 8;
-  left: min(72%, 214px);
-  top: 16px;
+  left: calc(100% + 18px);
+  top: 0;
   display: block;
-  width: min(390px, 48vw);
+  width: min(470px, 44vw);
   padding: 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -973,7 +973,7 @@ h1 {
   }
 }
 
-@media (max-width: 760px) {
+  @media (max-width: 760px) {
   .site-header {
     min-height: 64px;
   }
@@ -1010,7 +1010,7 @@ h1 {
   .print-preview-popover {
     left: 50%;
     top: calc(100% - 16px);
-    width: min(330px, 92vw);
+    width: min(360px, 92vw);
     transform: translateX(-50%);
   }
 
