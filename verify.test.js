@@ -37,15 +37,14 @@ test('upload controls live beside the preview placeholder and placeholder upload
 
 test('brand includes logo assets and favicon links', () => {
   const html = read('index.html');
-  const logo = read('assets/logo.svg');
-  const favicon = read('assets/favicon.svg');
+  const logo = fs.statSync(path.join(root, 'assets/snappass-logo.png'));
+  const favicon = fs.statSync(path.join(root, 'assets/favicon.png'));
 
   assert.match(html, /rel="icon"/);
-  assert.match(html, /href="assets\/favicon\.svg"/);
-  assert.match(html, /src="assets\/logo\.svg"/);
-  assert.match(logo, /SnapPass logo/);
-  assert.match(logo, /passport/i);
-  assert.match(favicon, /SnapPass favicon/);
+  assert.match(html, /href="assets\/favicon\.png"/);
+  assert.match(html, /src="assets\/snappass-logo\.png"/);
+  assert.ok(logo.size > 10000);
+  assert.ok(favicon.size > 10000);
 });
 
 test('site positioning is free with minimal ad support', () => {

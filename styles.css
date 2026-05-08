@@ -62,7 +62,7 @@ a {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   font-weight: 850;
   letter-spacing: 0;
 }
@@ -70,10 +70,12 @@ a {
 .brand-logo {
   display: block;
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  box-shadow: 0 10px 22px rgba(16, 37, 31, 0.15);
+  width: clamp(128px, 14vw, 168px);
+  height: auto;
+  max-height: 58px;
+  object-fit: contain;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .brand-copy {
@@ -89,8 +91,9 @@ a {
 
 .brand-tagline {
   color: var(--color-primary-dark);
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 780;
+  max-width: 150px;
 }
 
 .nav-links {
@@ -901,7 +904,11 @@ h1 {
   }
 
   .brand-tagline {
-    font-size: 0.68rem;
+    display: none;
+  }
+
+  .brand-logo {
+    width: 128px;
   }
 
   .hero {
