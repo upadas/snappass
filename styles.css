@@ -389,7 +389,7 @@ h1 {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(100%, 520px);
+  width: min(100%, 340px);
   aspect-ratio: 1 / 1;
   justify-self: center;
   border-radius: var(--radius);
@@ -418,7 +418,7 @@ h1 {
 
 .photo-frame {
   position: relative;
-  width: min(57%, 248px);
+  width: min(74%, 252px);
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border: 1px solid #b8cbc3;
@@ -1352,6 +1352,6 @@ h1 {
   }
 
   .photo-stage {
-    width: min(100%, 420px);
+    width: min(100%, 320px);
   }
 }

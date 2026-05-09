@@ -4,7 +4,7 @@ SnapPass is a simple passport, visa, and ID photo maker prototype. It uses stati
 
 ## AI Photo Agent
 
-The OpenAI key is server-side only. Set these environment variables in your hosting provider or local shell:
+The OpenAI key is server-side only. The server reads Markdown requirements from `docs/photo-specs/` before asking the model to evaluate or clean up a photo. Set these environment variables in your hosting provider or local shell:
 
 ```bash
 OPENAI_API_KEY=your_key_here
@@ -12,7 +12,13 @@ OPENAI_MODEL=gpt-5.5
 OPENAI_IMAGE_MODEL=gpt-image-1
 ```
 
-`OPENAI_MODEL` powers passport photo analysis through the Responses API. `OPENAI_IMAGE_MODEL` powers background replacement through the Images edit API. If `OPENAI_API_KEY` is not set, SnapPass still runs with a server fallback that previews background replacement using the browser mask.
+`OPENAI_MODEL` powers passport photo analysis through the Responses API. `OPENAI_IMAGE_MODEL` powers background replacement through the Images edit API. If `OPENAI_API_KEY` is not set, SnapPass still runs with local fallback checks and keeps the original photo available.
+
+Agent contracts:
+
+- `docs/photo-specs/us-passport.md`: US passport rules for photo analysis and cleanup.
+- `docs/agents/photo-compliance-agent.md`: upload-time analysis and cleanup flow.
+- `docs/agents/print-provider-agent.md`: future Walmart, Walgreens, CVS, and pharmacy print ordering flow.
 
 ## Run Locally
 
@@ -57,12 +63,16 @@ Railway can deploy this repo with Nixpacks.
 
 ### Vercel
 
-Vercel can serve the static files directly.
+Vercel is a good choice if you want the fastest path for the static SnapPass frontend. For the full AI agent flow, keep the Node server on Railway/Render or convert `server.js` into Vercel serverless functions before production.
 
 1. Import `upadas/snappass`.
-2. Leave build command empty.
-3. Use `.` as the output directory.
-4. Add the AI variables in Vercel project environment variables if you deploy the Node API path.
+2. Framework preset: **Other**.
+3. Build command: leave empty.
+4. Output directory: `.`.
+5. Install command: `npm install`.
+6. Add `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_IMAGE_MODEL` in **Project Settings > Environment Variables** if you also deploy API routes.
+7. Add `snappass.me` under **Project Settings > Domains** after DNS is ready.
+8. Production caveat: the current `server.js` API is a long-running Node server. Railway or Render is the cleaner launch target for full AI cleanup until Vercel API routes are split out.
 
 ## Domain
 

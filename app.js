@@ -551,7 +551,9 @@ const requestBackgroundEdit = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         imageDataUrl: currentPhotoDataUrl,
-        mode: selectedBackgroundMode
+        mode: selectedBackgroundMode,
+        country: country.value,
+        documentType: documentType.value
       })
     });
     const result = await response.json();
@@ -1045,7 +1047,8 @@ photoFrame.addEventListener('pointerdown', (event) => {
     startX: event.clientX,
     startY: event.clientY,
     panX: previewPanX,
-    panY: previewPanY
+    panY: previewPanY,
+    hasMoved: false
   };
   photoFrame.classList.add('is-dragging');
   photoFrame.setPointerCapture(event.pointerId);
@@ -1057,6 +1060,8 @@ photoFrame.addEventListener('pointermove', (event) => {
   }
 
   const bounds = photoFrame.getBoundingClientRect();
+  const movement = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+  dragState.hasMoved = dragState.hasMoved || movement > 5;
   const nextPanX = dragState.panX + ((event.clientX - dragState.startX) / bounds.width) * 100;
   const nextPanY = dragState.panY + ((event.clientY - dragState.startY) / bounds.height) * 100;
   previewPanX = Math.min(24, Math.max(-24, nextPanX));
@@ -1069,10 +1074,15 @@ const stopPreviewDrag = (event) => {
     return;
   }
 
+  const shouldReplacePhoto = event.type === 'pointerup' && !dragState.hasMoved;
   dragState = null;
   photoFrame.classList.remove('is-dragging');
   if (photoFrame.hasPointerCapture(event.pointerId)) {
     photoFrame.releasePointerCapture(event.pointerId);
+  }
+
+  if (shouldReplacePhoto) {
+    photoInput.click();
   }
 };
 

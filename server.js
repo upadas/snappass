@@ -10,6 +10,7 @@ const openAiModel = process.env.OPENAI_MODEL || 'gpt-5.5';
 const openAiImageModel = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
 const maxJsonBytes = 12 * 1024 * 1024;
 const mobileUploads = new Map();
+const specRoot = path.join(root, 'docs', 'photo-specs');
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -116,7 +117,34 @@ const parseJsonOutput = (text) => {
   return JSON.parse(fenced ? fenced[1] : trimmed);
 };
 
+const readSpecMarkdown = (country = 'us', documentType = 'passport') => {
+  const safeCountry = String(country || 'us').replace(/[^a-z0-9-]/gi, '').toLowerCase();
+  const safeDocument = String(documentType || 'passport').replace(/[^a-z0-9-]/gi, '').toLowerCase();
+  const candidates = [
+    path.join(specRoot, `${safeCountry}-${safeDocument}.md`),
+    path.join(specRoot, `${safeCountry}-passport.md`),
+    path.join(specRoot, 'us-passport.md')
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return fs.readFileSync(candidate, 'utf8');
+    } catch {
+      // Try the next most specific spec file.
+    }
+  }
+
+  return [
+    '# Passport Photo Spec',
+    '- Square output.',
+    '- One front-facing human subject.',
+    '- Plain white or off-white background.',
+    '- Preserve facial features and identity.'
+  ].join('\n');
+};
+
 const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
+  const specMarkdown = readSpecMarkdown(country, documentType);
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -142,6 +170,7 @@ const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
               type: 'input_text',
               text: [
                 `Document target: ${country || 'us'} ${documentType || 'passport'}.`,
+                `Official/local spec markdown:\n${specMarkdown}`,
                 'Return strict JSON with keys: isHuman boolean, lighting pass|warning, headCentered pass|warning, background pass|warning, recommendedZoom number 80-140, recommendedRotation number -8 to 8, warnings string[], checks object with human lighting head background strings.',
                 'Check whether the subject is human, front-facing, evenly lit, centered, and on an acceptable plain white or off-white passport background.'
               ].join(' ')
@@ -172,9 +201,10 @@ const dataUrlToBlob = async (dataUrl) => {
   return new Blob([bytes], { type: mime });
 };
 
-const editBackgroundWithOpenAi = async ({ imageDataUrl, mode }) => {
+const editBackgroundWithOpenAi = async ({ imageDataUrl, mode, country, documentType }) => {
   const form = new FormData();
   const imageBlob = await dataUrlToBlob(imageDataUrl);
+  const specMarkdown = readSpecMarkdown(country, documentType);
   form.append('model', openAiImageModel);
   form.append('image', imageBlob, 'passport-source.png');
   form.append('size', '1024x1024');
@@ -182,6 +212,7 @@ const editBackgroundWithOpenAi = async ({ imageDataUrl, mode }) => {
     mode === 'ai-cleanup'
       ? 'Remove background objects and replace the backdrop with a smooth plain white or off-white passport-photo background.'
       : 'Replace the full background with clean pure white for a passport photo.',
+    `Follow this spec:\n${specMarkdown}`,
     'Do not change facial features, identity, skin texture, hairline, expression, head shape, clothing, pose, or facial geometry.'
   ].join(' '));
 

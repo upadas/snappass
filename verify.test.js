@@ -231,13 +231,24 @@ test('site includes expandable passport photo requirement cards', () => {
 
 test('server exposes private AI photo agent endpoints', () => {
   const server = read('server.js');
+  const usPassportSpec = read('docs/photo-specs/us-passport.md');
+  const photoAgent = read('docs/agents/photo-compliance-agent.md');
+  const printAgent = read('docs/agents/print-provider-agent.md');
 
   assert.match(server, /OPENAI_API_KEY/);
   assert.match(server, /\/api\/photo\/analyze/);
   assert.match(server, /\/api\/photo\/background/);
   assert.match(server, /responses/);
   assert.match(server, /images\/edits/);
+  assert.match(server, /readSpecMarkdown/);
+  assert.match(server, /docs', 'photo-specs/);
   assert.match(server, /do not change facial features/i);
+  assert.match(usPassportSpec, /Head must be centered/);
+  assert.match(usPassportSpec, /50-69%/);
+  assert.match(usPassportSpec, /56-69%/);
+  assert.match(photoAgent, /Keep the original photo available/);
+  assert.match(printAgent, /Walmart/);
+  assert.match(printAgent, /Walgreens/);
 });
 
 test('browser keeps the OpenAI key on the server and requests agent help in the background', () => {
@@ -259,6 +270,8 @@ test('deployment docs explain AI environment variables', () => {
   assert.match(readme, /OPENAI_API_KEY/);
   assert.match(readme, /OPENAI_MODEL/);
   assert.match(readme, /server-side/i);
+  assert.match(readme, /docs\/photo-specs/);
+  assert.match(readme, /photo-compliance-agent/);
   assert.match(envExample, /OPENAI_API_KEY=/);
   assert.match(envExample, /OPENAI_MODEL=/);
 });
@@ -275,6 +288,8 @@ test('deployment package supports Render, Railway, and Vercel', () => {
   assert.match(renderYaml, /type:\s*web/);
   assert.match(renderYaml, /startCommand:\s*npm start/);
   assert.equal(vercelJson.cleanUrls, true);
+  assert.match(read('README.md'), /Framework preset: \*\*Other\*\*/);
+  assert.match(read('README.md'), /current `server\.js` API is a long-running Node server/);
 });
 
 test('package includes Playwright browser verification', () => {

@@ -158,6 +158,7 @@ const run = async () => {
       frameAspect: Math.round(document.querySelector('#photoFrame').getBoundingClientRect().width) === Math.round(document.querySelector('#photoFrame').getBoundingClientRect().height),
       stageAspect: Math.round(document.querySelector('#photoStage').getBoundingClientRect().width) === Math.round(document.querySelector('#photoStage').getBoundingClientRect().height),
       frameToStageRatio: document.querySelector('#photoFrame').getBoundingClientRect().width / document.querySelector('#photoStage').getBoundingClientRect().width,
+      checkerPadding: Math.round((document.querySelector('#photoStage').getBoundingClientRect().width - document.querySelector('#photoFrame').getBoundingClientRect().width) / 2),
       dropReady: document.querySelector('#photoStage').classList.contains('is-drop-ready'),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
@@ -181,7 +182,8 @@ const run = async () => {
     assert.equal(uploaded.prepStepCount, 4);
     assert.equal(uploaded.frameAspect, true);
     assert.equal(uploaded.stageAspect, true);
-    assert.ok(uploaded.frameToStageRatio < 0.6);
+    assert.ok(uploaded.frameToStageRatio > 0.7);
+    assert.ok(uploaded.checkerPadding >= 36 && uploaded.checkerPadding <= 56);
     assert.equal(uploaded.dropReady, false);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
@@ -215,6 +217,14 @@ const run = async () => {
     assert.equal(appliedSuggestion.rotate, '0');
 
     await page.locator('#photoFrame').scrollIntoViewIfNeeded();
+    const replacementChooser = page.waitForEvent('filechooser');
+    await page.locator('#photoFrame').click();
+    await (await replacementChooser).setFiles({
+      name: 'replacement.svg',
+      mimeType: 'image/svg+xml',
+      buffer: portraitSvg
+    });
+    await page.waitForFunction(() => document.querySelector('#photoPreview').alt.includes('replacement.svg'));
     const beforeDragTransform = await page.locator('#photoPreview').evaluate((element) => getComputedStyle(element).transform);
     const frameBox = await page.locator('#photoFrame').boundingBox();
     await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height / 2);
