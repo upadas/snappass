@@ -26,6 +26,12 @@ const lightingMode = document.querySelector('#lightingMode');
 const applySuggestionButton = document.querySelector('#applySuggestionButton');
 const printPreviewPanel = document.querySelector('#printPreviewPanel');
 const printSheetPreview = document.querySelector('#printSheetPreview');
+const phoneUploadButton = document.querySelector('#phoneUploadButton');
+const phoneUploadModal = document.querySelector('#phoneUploadModal');
+const phoneUploadClose = document.querySelector('#phoneUploadClose');
+const phoneUploadQr = document.querySelector('#phoneUploadQr');
+const phoneUploadLink = document.querySelector('#phoneUploadLink');
+const phoneUploadStatus = document.querySelector('#phoneUploadStatus');
 
 const DIGITAL_PHOTO_SIZE = 600;
 const PASSPORT_PHOTO_SIZE = 600;
@@ -59,6 +65,8 @@ let currentPrintQuote = PRINT_QUOTES[0];
 let previewPanX = 0;
 let previewPanY = 0;
 let dragState = null;
+let phoneUploadSession = '';
+let phoneUploadPollTimer = null;
 let localImageFindings = {
   isHuman: true,
   warning: '',
@@ -68,7 +76,7 @@ let localImageFindings = {
 
 const requirementCopy = {
   us: {
-    passport: 'US passport photo: 2 x 2 inches, plain white background, centered face.',
+    passport: 'US passport photo: 2 x 2 inches, 600 x 600 px minimum, head 50-69%, eyes 56-69% from bottom.',
     visa: 'US visa photo: 2 x 2 inches, neutral expression, plain light background.',
     id: 'US ID photo: square crop, clear face, even lighting, simple background.',
     baby: 'US baby passport photo: 2 x 2 inches, eyes visible, no parent hands in frame.'
@@ -135,6 +143,12 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.addEventListener('error', reject);
   reader.readAsDataURL(file);
 });
+
+const dataUrlToFile = async (dataUrl, filename = 'phone-upload.png') => {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type || 'image/png' });
+};
 
 const selectRandomQuote = () => {
   const nextQuote = PRINT_QUOTES[Math.floor(Math.random() * PRINT_QUOTES.length)];
@@ -711,6 +725,7 @@ const resetState = () => {
   previewPanX = 0;
   previewPanY = 0;
   dragState = null;
+  stopPhoneUploadPolling();
   localImageFindings = {
     isHuman: true,
     warning: '',
@@ -736,6 +751,64 @@ const resetState = () => {
   resetAiAssessment();
   updatePreviewTransform();
   clearPrintSheetPreview();
+};
+
+const stopPhoneUploadPolling = () => {
+  if (phoneUploadPollTimer) {
+    clearInterval(phoneUploadPollTimer);
+    phoneUploadPollTimer = null;
+  }
+};
+
+const closePhoneUploadModal = () => {
+  phoneUploadModal.hidden = true;
+  stopPhoneUploadPolling();
+};
+
+const pollPhoneUpload = async () => {
+  if (!phoneUploadSession) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/mobile-upload/${encodeURIComponent(phoneUploadSession)}`);
+    if (!response.ok) {
+      return;
+    }
+
+    const result = await response.json();
+    if (result.status !== 'ready' || !result.imageDataUrl) {
+      return;
+    }
+
+    phoneUploadStatus.textContent = 'Photo received. Preparing preview...';
+    const file = await dataUrlToFile(result.imageDataUrl, result.filename || 'phone-upload.png');
+    closePhoneUploadModal();
+    await showLoadedState(file);
+  } catch {
+    phoneUploadStatus.textContent = 'Still waiting. Make sure the phone can reach this SnapPass URL.';
+  }
+};
+
+const openPhoneUploadModal = () => {
+  phoneUploadSession = (window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const canUseServerUpload = /^https?:$/.test(window.location.protocol);
+  const baseUrl = canUseServerUpload
+    ? window.location.origin
+    : 'https://snappass.me';
+  const uploadUrl = `${baseUrl}/mobile-upload.html?session=${encodeURIComponent(phoneUploadSession)}`;
+
+  phoneUploadLink.href = uploadUrl;
+  phoneUploadQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(uploadUrl)}`;
+  phoneUploadModal.hidden = false;
+  phoneUploadStatus.textContent = canUseServerUpload
+    ? 'Scan this code with your phone, choose a photo, and SnapPass will load it here.'
+    : 'QR phone upload works when SnapPass is running from a server or deployed URL. This file preview can show the handoff link only.';
+
+  stopPhoneUploadPolling();
+  if (canUseServerUpload) {
+    phoneUploadPollTimer = setInterval(pollPhoneUpload, 1500);
+  }
 };
 
 const fillCanvasBackground = (context, canvas) => {
@@ -984,6 +1057,14 @@ downloadPrintButton.addEventListener('click', downloadPrintableSheet);
 
 cameraButton.addEventListener('click', () => {
   photoInput.click();
+});
+
+phoneUploadButton.addEventListener('click', openPhoneUploadModal);
+phoneUploadClose.addEventListener('click', closePhoneUploadModal);
+phoneUploadModal.addEventListener('click', (event) => {
+  if (event.target === phoneUploadModal) {
+    closePhoneUploadModal();
+  }
 });
 
 updateRequirementSummary();

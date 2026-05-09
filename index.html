@@ -134,15 +134,22 @@
                   <div class="stage-actions preview-upload-actions">
                     <label class="button button-primary button-compact" for="photoInput">Upload photo</label>
                     <button class="button button-secondary button-compact" type="button" id="cameraButton">Use camera</button>
+                    <button class="button button-secondary button-compact button-wide" type="button" id="phoneUploadButton">Scan QR from phone</button>
                   </div>
-                  <p class="form-note" id="requirementSummary">US passport photo: 2 x 2 inches, plain white background, centered face.</p>
+                  <p class="form-note" id="requirementSummary">US passport photo: 2 x 2 inches, 600 x 600 px minimum, head 50-69%, eyes 56-69% from bottom.</p>
+                  <div class="spec-strip" aria-label="US passport targets">
+                    <span>2 x 2 in</span>
+                    <span>600 x 600 px+</span>
+                    <span>Head 50-69%</span>
+                    <span>Eyes 56-69%</span>
+                  </div>
                 </form>
                 <div class="checklist" id="checklist" aria-label="Requirement checklist">
                   <div class="check-item is-pending" data-check="human"><span></span>Human subject</div>
-                  <div class="check-item is-pending" data-check="size"><span></span>Size: 2 x 2 inches</div>
+                  <div class="check-item is-pending" data-check="size"><span></span>2 x 2 / 600 px</div>
                   <div class="check-item is-pending" data-check="background"><span></span>Background: plain white</div>
-                  <div class="check-item is-pending" data-check="head"><span></span>Head centered</div>
-                  <div class="check-item is-pending" data-check="lighting"><span></span>Lighting review</div>
+                  <div class="check-item is-pending" data-check="head"><span></span>Head 50-69%</div>
+                  <div class="check-item is-pending" data-check="lighting"><span></span>Eyes 56-69%</div>
                 </div>
                 <div class="agent-prep" aria-label="AI preparation steps">
                   <div><span></span>Scan face</div>
@@ -184,6 +191,19 @@
               <p class="ai-note">AI agent mode: analysis and cleanup run server-side. Facial features are not intentionally changed. Without an API key, SnapPass uses local checks and keeps the original photo intact.</p>
             </div>
 
+            <div class="qr-modal" id="phoneUploadModal" hidden role="dialog" aria-modal="true" aria-labelledby="phoneUploadTitle">
+              <div class="qr-card">
+                <button class="qr-close" id="phoneUploadClose" type="button" aria-label="Close phone upload">×</button>
+                <div>
+                  <p class="section-kicker">Phone upload</p>
+                  <h3 id="phoneUploadTitle">Scan to add a photo</h3>
+                  <p id="phoneUploadStatus">Open this page on your phone and choose a passport-style photo. SnapPass will pull it into this preview.</p>
+                </div>
+                <img id="phoneUploadQr" alt="QR code for phone photo upload">
+                <a id="phoneUploadLink" href="#" target="_blank" rel="noreferrer">Open phone upload page</a>
+              </div>
+            </div>
+
             <div class="export-panel" id="exportPanel" hidden>
               <h3>Export options</h3>
               <div class="export-grid">
@@ -215,6 +235,11 @@
             <span>3</span>
             <h3>Adjust and export</h3>
             <p>Crop, zoom, rotate, then export a digital image or printable 4x6 sheet.</p>
+          </article>
+          <article>
+            <span>4</span>
+            <h3>US passport targets</h3>
+            <p>SnapPass follows the official square-photo guide: 600 x 600 px minimum, head 50-69% of image height, and eyes 56-69% from the bottom.</p>
           </article>
         </div>
       </section>

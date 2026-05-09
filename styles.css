@@ -389,7 +389,9 @@ h1 {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 310px;
+  width: min(100%, 520px);
+  aspect-ratio: 1 / 1;
+  justify-self: center;
   border-radius: var(--radius);
   background:
     linear-gradient(45deg, rgba(22, 127, 99, 0.06) 25%, transparent 25% 75%, rgba(22, 127, 99, 0.06) 75%),
@@ -407,7 +409,7 @@ h1 {
 
 .photo-frame {
   position: relative;
-  width: min(68%, 230px);
+  width: min(76%, 330px);
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border: 1px solid #b8cbc3;
@@ -486,6 +488,29 @@ h1 {
   gap: 8px;
   width: 100%;
   margin-top: 8px;
+}
+
+.button-wide {
+  grid-column: 1 / -1;
+}
+
+.spec-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.spec-strip span {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border: 1px solid #d5e4dd;
+  border-radius: 8px;
+  background: #f8fcfa;
+  color: var(--color-primary-dark);
+  font-size: 0.7rem;
+  font-weight: 850;
 }
 
 .face-placeholder {
@@ -859,9 +884,7 @@ h1 {
   transition: opacity 180ms ease 1s, transform 180ms ease 1s, visibility 0s linear 1s;
 }
 
-.photo-stage:hover .print-preview-popover:not([hidden]),
-.photo-stage:focus-visible .print-preview-popover:not([hidden]),
-.photo-stage:focus-within .print-preview-popover:not([hidden]) {
+.photo-stage:hover .print-preview-popover:not([hidden]) {
   opacity: 1;
   transform: translateY(0);
   visibility: visible;
@@ -876,6 +899,70 @@ h1 {
   border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 10px 24px rgba(16, 37, 31, 0.08);
+}
+
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 37, 31, 0.36);
+}
+
+.qr-card {
+  position: relative;
+  width: min(92vw, 420px);
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 30px 80px rgba(16, 37, 31, 0.24);
+  text-align: center;
+}
+
+.qr-card h3 {
+  margin: 4px 0 8px;
+  font-size: 1.4rem;
+}
+
+.qr-card p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.qr-card img {
+  width: 220px;
+  height: 220px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.qr-card a {
+  color: var(--color-primary-dark);
+  font-weight: 850;
+}
+
+.qr-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 1.3rem;
+  line-height: 1;
 }
 
 .export-grid {
@@ -1028,6 +1115,6 @@ h1 {
   }
 
   .photo-stage {
-    min-height: 260px;
+    width: min(100%, 420px);
   }
 }

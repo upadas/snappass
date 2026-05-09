@@ -9,6 +9,7 @@ const openAiApiKey = process.env.OPENAI_API_KEY || '';
 const openAiModel = process.env.OPENAI_MODEL || 'gpt-5.5';
 const openAiImageModel = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
 const maxJsonBytes = 12 * 1024 * 1024;
+const mobileUploads = new Map();
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -261,6 +262,46 @@ const handleBackground = async (request, response) => {
   }
 };
 
+const readMobileSession = (url = '') => {
+  const match = url.match(/^\/api\/mobile-upload\/([^/?#]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
+};
+
+const handleMobileUploadPost = async (request, response, session) => {
+  try {
+    const body = await readJsonBody(request);
+    if (!session || !body.imageDataUrl) {
+      sendJson(response, 400, { error: 'session and imageDataUrl are required' });
+      return;
+    }
+
+    mobileUploads.set(session, {
+      filename: body.filename || 'phone-upload.png',
+      imageDataUrl: body.imageDataUrl,
+      createdAt: Date.now()
+    });
+
+    sendJson(response, 200, { status: 'ready' });
+  } catch (error) {
+    sendJson(response, 400, { error: error.message });
+  }
+};
+
+const handleMobileUploadGet = (response, session) => {
+  const upload = mobileUploads.get(session);
+  if (!upload) {
+    sendJson(response, 200, { status: 'waiting' });
+    return;
+  }
+
+  mobileUploads.delete(session);
+  sendJson(response, 200, {
+    status: 'ready',
+    filename: upload.filename,
+    imageDataUrl: upload.imageDataUrl
+  });
+};
+
 const resolvePath = (urlPath) => {
   const cleanPath = decodeURIComponent(urlPath.split('?')[0]);
   const requested = cleanPath === '/' ? '/index.html' : cleanPath;
@@ -274,6 +315,17 @@ const resolvePath = (urlPath) => {
 };
 
 const server = http.createServer(async (request, response) => {
+  const mobileSession = readMobileSession(request.url || '');
+  if (mobileSession && request.method === 'POST') {
+    await handleMobileUploadPost(request, response, mobileSession);
+    return;
+  }
+
+  if (mobileSession && request.method === 'GET') {
+    handleMobileUploadGet(response, mobileSession);
+    return;
+  }
+
   if (request.method === 'POST' && request.url === '/api/photo/analyze') {
     await handleAnalyze(request, response);
     return;

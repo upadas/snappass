@@ -74,13 +74,38 @@ const run = async () => {
       uploadButtonCount: Array.from(document.querySelectorAll('label[for="photoInput"]'))
         .filter((label) => label.offsetParent !== null).length,
       watermark: document.querySelector('#photoStage').textContent,
+      phoneButton: document.querySelector('#phoneUploadButton').textContent.trim(),
+      requirement: document.querySelector('#requirementSummary').textContent.trim(),
+      specStrip: document.querySelector('.spec-strip').textContent,
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1
     }));
     assert.match(initial.title, /Passport photos/);
     assert.equal(initial.exportHidden, true);
     assert.equal(initial.uploadButtonCount, 1);
     assert.match(initial.watermark, /Click to upload/);
+    assert.equal(initial.phoneButton, 'Scan QR from phone');
+    assert.match(initial.requirement, /600 x 600 px minimum/);
+    assert.match(initial.requirement, /50-69%/);
+    assert.match(initial.requirement, /56-69%/);
+    assert.match(initial.specStrip, /Head 50-69%/);
     assert.equal(initial.overflow, false);
+
+    await page.click('#phoneUploadButton');
+    const qrState = await page.evaluate(() => ({
+      hidden: document.querySelector('#phoneUploadModal').hidden,
+      href: document.querySelector('#phoneUploadLink').href,
+      qr: document.querySelector('#phoneUploadQr').src,
+      status: document.querySelector('#phoneUploadStatus').textContent.trim()
+    }));
+    assert.equal(qrState.hidden, false);
+    assert.match(qrState.href, /mobile-upload\.html\?session=/);
+    assert.match(qrState.qr, /api\.qrserver\.com/);
+    assert.match(qrState.status, /Scan this code/);
+    const session = new URL(qrState.href).searchParams.get('session');
+    const waitingResponse = await fetch(`${appUrl}api/mobile-upload/${session}`);
+    assert.deepEqual(await waitingResponse.json(), { status: 'waiting' });
+    await page.click('#phoneUploadClose');
+    await page.waitForFunction(() => document.querySelector('#phoneUploadModal').hidden);
 
     await uploadSample(page);
     const uploaded = await page.evaluate(() => ({
@@ -101,6 +126,7 @@ const run = async () => {
       cropGuideRemoved: document.querySelector('.crop-guide') === null,
       prepStepCount: document.querySelectorAll('.agent-prep div').length,
       frameAspect: Math.round(document.querySelector('#photoFrame').getBoundingClientRect().width) === Math.round(document.querySelector('#photoFrame').getBoundingClientRect().height),
+      stageAspect: Math.round(document.querySelector('#photoStage').getBoundingClientRect().width) === Math.round(document.querySelector('#photoStage').getBoundingClientRect().height),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -122,6 +148,7 @@ const run = async () => {
     assert.equal(uploaded.cropGuideRemoved, true);
     assert.equal(uploaded.prepStepCount, 4);
     assert.equal(uploaded.frameAspect, true);
+    assert.equal(uploaded.stageAspect, true);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
@@ -153,6 +180,7 @@ const run = async () => {
     assert.equal(appliedSuggestion.zoom, '100');
     assert.equal(appliedSuggestion.rotate, '0');
 
+    await page.locator('#photoFrame').scrollIntoViewIfNeeded();
     const beforeDragTransform = await page.locator('#photoPreview').evaluate((element) => getComputedStyle(element).transform);
     const frameBox = await page.locator('#photoFrame').boundingBox();
     await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height / 2);

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SnapPass Phone Upload</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #10251f;
+        --muted: #52635d;
+        --primary: #167f63;
+        --border: #cfe1da;
+        --soft: #f2faf6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, #f8fcfa, #eef8f3);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(92vw, 430px);
+        display: grid;
+        gap: 18px;
+        padding: 26px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 48px rgba(16, 37, 31, 0.12);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 9vw, 3rem);
+        line-height: 0.96;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.45;
+      }
+
+      label {
+        display: grid;
+        place-items: center;
+        min-height: 64px;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 850;
+      }
+
+      input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+      }
+
+      .status {
+        min-height: 54px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--soft);
+        color: var(--ink);
+        font-weight: 720;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Add your photo</h1>
+      <p>Choose or take a clear front-facing passport photo. This page sends it to your SnapPass preview session.</p>
+      <label for="phonePhoto">Choose photo</label>
+      <input id="phonePhoto" type="file" accept="image/png,image/jpeg,image/webp" capture="environment">
+      <div class="status" id="status">Waiting for a photo...</div>
+    </main>
+    <script>
+      const statusNode = document.querySelector('#status');
+      const input = document.querySelector('#phonePhoto');
+      const session = new URLSearchParams(location.search).get('session');
+
+      const readFile = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener('load', () => resolve(reader.result));
+        reader.addEventListener('error', reject);
+        reader.readAsDataURL(file);
+      });
+
+      input.addEventListener('change', async (event) => {
+        const [file] = event.target.files;
+        if (!session) {
+          statusNode.textContent = 'Missing upload session. Reopen the QR code from SnapPass.';
+          return;
+        }
+
+        if (!file || !file.type.startsWith('image/')) {
+          statusNode.textContent = 'Choose a JPG, PNG, or WebP photo.';
+          return;
+        }
+
+        statusNode.textContent = 'Sending photo to SnapPass...';
+        try {
+          const imageDataUrl = await readFile(file);
+          const response = await fetch(`/api/mobile-upload/${encodeURIComponent(session)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, imageDataUrl })
+          });
+          if (!response.ok) {
+            throw new Error('Upload failed');
+          }
+          statusNode.textContent = 'Photo sent. You can return to SnapPass on your computer.';
+        } catch {
+          statusNode.textContent = 'Could not send the photo. Make sure both devices can reach this SnapPass URL.';
+        }
+      });
+    </script>
+  </body>
+</html>
