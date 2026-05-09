@@ -90,6 +90,19 @@ const run = async () => {
     assert.match(initial.specStrip, /Head 50-69%/);
     assert.equal(initial.overflow, false);
 
+    const requirementsGuide = await page.evaluate(() => ({
+      title: document.querySelector('#passport-checklist-title').textContent.trim(),
+      cardCount: document.querySelectorAll('.requirement-card').length,
+      detailsCount: document.querySelectorAll('.requirement-card details').length,
+      firstOpen: document.querySelector('.requirement-card details').open,
+      gridColumns: getComputedStyle(document.querySelector('.requirement-card-grid')).gridTemplateColumns.split(' ').length
+    }));
+    assert.equal(requirementsGuide.title, '2026 US passport photo checklist');
+    assert.equal(requirementsGuide.cardCount, 6);
+    assert.equal(requirementsGuide.detailsCount, 6);
+    assert.equal(requirementsGuide.firstOpen, false);
+    assert.equal(requirementsGuide.gridColumns, 3);
+
     await page.click('#phoneUploadButton');
     const qrState = await page.evaluate(() => ({
       hidden: document.querySelector('#phoneUploadModal').hidden,

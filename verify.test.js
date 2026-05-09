@@ -207,6 +207,25 @@ test('site documents print partner and deployment strategy', () => {
   assert.match(readme, /AWS Amplify/);
 });
 
+test('site includes expandable passport photo requirement cards', () => {
+  const html = read('index.html');
+  const css = read('styles.css');
+
+  assert.match(html, /2026 US passport photo checklist/);
+  assert.match(html, /Composition &amp; lighting/);
+  assert.match(html, /Pose &amp; expression/);
+  assert.match(html, /Clothing &amp; accessories/);
+  assert.match(html, /Children &amp; babies/);
+  assert.match(html, /Technical specifications/);
+  assert.match(html, /Submission readiness/);
+  assert.match(html, /<details>/);
+  assert.match(html, /Read more/);
+  assert.match(css, /\.requirement-card-grid/);
+  assert.match(css, /\.example-pair/);
+  assert.match(css, /\.mini-photo\.is-good::after/);
+  assert.match(css, /\.mini-photo\.is-bad::after/);
+});
+
 test('server exposes private AI photo agent endpoints', () => {
   const server = read('server.js');
 
