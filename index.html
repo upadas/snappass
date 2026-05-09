@@ -62,6 +62,13 @@
                 <div class="photo-stage" id="photoStage" role="button" tabindex="0" aria-label="Click to upload a passport photo">
                   <div class="photo-frame" id="photoFrame" aria-label="Photo preview">
                     <img id="photoPreview" alt="">
+                    <div class="passport-guide" aria-hidden="true">
+                      <span class="guide-center"></span>
+                      <span class="guide-head-max"></span>
+                      <span class="guide-head-min"></span>
+                      <span class="guide-eye-line"></span>
+                      <span class="guide-shoulders"></span>
+                    </div>
                     <div class="face-placeholder" aria-hidden="true">
                       <span class="head"></span>
                       <span class="shoulders"></span>
@@ -169,26 +176,27 @@
                 <span class="mini-pill" id="aiStatus">Waiting for photo</span>
               </div>
               <p class="human-warning" id="humanWarning" hidden>Warning: this does not appear to be a human passport-style portrait. Upload a front-facing photo of one person.</p>
-              <div class="ai-grid">
-                <div class="ai-check is-pending" data-ai-check="human">
-                  <strong>Human subject</strong>
-                  <span>Upload a face photo to check.</span>
-                </div>
-                <div class="ai-check is-pending" data-ai-check="lighting">
-                  <strong>Lighting</strong>
-                  <span>Checks for underexposure, glare, and hard shadows.</span>
-                </div>
-                <div class="ai-check is-pending" data-ai-check="head">
-                  <strong>Head centered</strong>
-                  <span>Checks whether the face sits inside the passport guide.</span>
-                </div>
-                <div class="ai-check is-pending" data-ai-check="background">
-                  <strong>Background</strong>
-                  <span>Checks for a plain white or off-white background.</span>
-                </div>
+              <p class="advisor-summary" id="advisorSummary">Upload a photo to start the AI suggested-photo flow.</p>
+              <div class="variant-panel" id="variantPanel" hidden>
+                <button class="variant-card is-selected" type="button" data-variant="original">
+                  <img id="variantOriginalPreview" alt="">
+                  <span>Original</span>
+                </button>
+                <button class="variant-card" type="button" data-variant="ai" disabled>
+                  <img id="variantAiPreview" alt="">
+                  <span>AI suggested</span>
+                </button>
+                <button class="variant-card" type="button" data-variant="white" disabled>
+                  <img id="variantWhitePreview" alt="">
+                  <span>White background</span>
+                </button>
+                <button class="variant-card" type="button" data-variant="lighting" disabled>
+                  <img id="variantLightingPreview" alt="">
+                  <span>Lighting enhanced</span>
+                </button>
               </div>
               <button class="suggestion-button" id="applySuggestionButton" type="button" hidden>Apply suggested crop</button>
-              <p class="ai-note">AI agent mode: analysis and cleanup run server-side. Facial features are not intentionally changed. Without an API key, SnapPass uses local checks and keeps the original photo intact.</p>
+              <p class="ai-note">AI suggested photo mode: analysis and background cleanup run server-side from the selected spec. Facial features are not intentionally changed. Without an API key, SnapPass keeps the original available and only offers safe local lighting preview.</p>
             </div>
 
             <div class="qr-modal" id="phoneUploadModal" hidden role="dialog" aria-modal="true" aria-labelledby="phoneUploadTitle">

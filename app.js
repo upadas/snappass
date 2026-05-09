@@ -18,6 +18,7 @@ const cameraButton = document.querySelector('#cameraButton');
 const aiStatus = document.querySelector('#aiStatus');
 const humanWarning = document.querySelector('#humanWarning');
 const aiAssessment = document.querySelector('#aiAssessment');
+const advisorSummary = document.querySelector('#advisorSummary');
 const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
 const downloadPrintButton = document.querySelector('#downloadPrintButton');
 const backgroundMode = document.querySelector('#backgroundMode');
@@ -26,6 +27,12 @@ const lightingMode = document.querySelector('#lightingMode');
 const applySuggestionButton = document.querySelector('#applySuggestionButton');
 const printPreviewPanel = document.querySelector('#printPreviewPanel');
 const printSheetPreview = document.querySelector('#printSheetPreview');
+const variantPanel = document.querySelector('#variantPanel');
+const variantCards = Array.from(document.querySelectorAll('.variant-card'));
+const variantOriginalPreview = document.querySelector('#variantOriginalPreview');
+const variantAiPreview = document.querySelector('#variantAiPreview');
+const variantWhitePreview = document.querySelector('#variantWhitePreview');
+const variantLightingPreview = document.querySelector('#variantLightingPreview');
 const phoneUploadButton = document.querySelector('#phoneUploadButton');
 const phoneUploadModal = document.querySelector('#phoneUploadModal');
 const phoneUploadClose = document.querySelector('#phoneUploadClose');
@@ -52,11 +59,20 @@ let currentImageFile = null;
 let currentPhotoDataUrl = '';
 let backgroundResultDataUrl = '';
 let processedPhotoDataUrl = '';
+let selectedVariant = 'original';
+let photoVariants = {
+  original: '',
+  ai: '',
+  white: '',
+  lighting: ''
+};
 let selectedBackgroundMode = 'keep-original';
 let analysisRequestId = 0;
 let backgroundRequestId = 0;
 let processingRequestId = 0;
+let suggestionRequestId = 0;
 let currentAiFindings = {
+  hasHumanWarning: false,
   hasHeadIssue: false,
   recommendedZoom: 100,
   recommendedRotation: 0
@@ -129,12 +145,17 @@ const setChecklistItem = (name, state, message) => {
 };
 
 const setAiCheck = (name, state, message) => {
-  const item = aiAssessment.querySelector(`[data-ai-check="${name}"]`);
-  const messageNode = item.querySelector('span');
-
-  item.classList.remove('is-pending', 'is-pass', 'is-warning');
-  item.classList.add(`is-${state}`);
-  messageNode.textContent = message;
+  const label = {
+    human: 'Human subject',
+    lighting: 'Lighting',
+    head: 'Head fit',
+    background: 'Background'
+  }[name] || 'Photo check';
+  if (state === 'warning') {
+    advisorSummary.textContent = `${label}: ${message}`;
+  } else if (!advisorSummary.textContent || /Upload a photo|Analyzing|Preparing/.test(advisorSummary.textContent)) {
+    advisorSummary.textContent = message;
+  }
 };
 
 const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -163,6 +184,43 @@ const dataUrlToFile = async (dataUrl, filename = 'phone-upload.png') => {
   const response = await fetch(dataUrl);
   const blob = await response.blob();
   return new File([blob], filename, { type: blob.type || 'image/png' });
+};
+
+const setVariant = async (name, dataUrl) => {
+  photoVariants[name] = dataUrl || '';
+  const preview = {
+    original: variantOriginalPreview,
+    ai: variantAiPreview,
+    white: variantWhitePreview,
+    lighting: variantLightingPreview
+  }[name];
+  const card = variantCards.find((item) => item.dataset.variant === name);
+  if (preview) {
+    preview.src = dataUrl || '';
+    preview.alt = dataUrl ? `${name} passport photo preview` : '';
+  }
+  if (card) {
+    card.disabled = !dataUrl;
+  }
+};
+
+const selectVariant = async (name) => {
+  const dataUrl = photoVariants[name];
+  if (!dataUrl) {
+    return;
+  }
+  selectedVariant = name;
+  variantCards.forEach((card) => {
+    card.classList.toggle('is-selected', card.dataset.variant === name);
+  });
+  processedPhotoDataUrl = dataUrl;
+  photoPreview.src = dataUrl;
+  try {
+    await photoPreview.decode();
+  } catch {
+    // Preview may still render even if decode is unavailable for a data URL.
+  }
+  renderPrintSheetPreview();
 };
 
 const selectRandomQuote = () => {
@@ -275,6 +333,7 @@ const runAiAssessment = (file) => {
   const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name) || !localImageFindings.backgroundPlain;
 
   currentAiFindings = {
+    hasHumanWarning: isLikelyNotHuman,
     hasHeadIssue,
     recommendedZoom: 100,
     recommendedRotation: 0
@@ -283,6 +342,13 @@ const runAiAssessment = (file) => {
   humanWarning.hidden = !isLikelyNotHuman;
   aiStatus.textContent = isLikelyNotHuman ? 'Retake needed' : 'AI preview';
   aiStatus.classList.toggle('is-warning', isLikelyNotHuman || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
+
+  if (isLikelyNotHuman) {
+    setChecklistItem('human', 'warning', 'Human subject needs review');
+    setChecklistItem('head', 'warning', 'Head 50-69% blocked');
+    setChecklistItem('background', 'warning', 'Background check blocked');
+    setChecklistItem('lighting', 'warning', 'Eyes 56-69% blocked');
+  }
 
   setAiCheck(
     'human',
@@ -322,6 +388,7 @@ const applyAiFindings = (analysis) => {
   const hasBackgroundIssue = analysis.background === 'warning';
 
   currentAiFindings = {
+    hasHumanWarning,
     hasHeadIssue,
     recommendedZoom: Number(analysis.recommendedZoom || 100),
     recommendedRotation: Number(analysis.recommendedRotation || 0)
@@ -332,6 +399,17 @@ const applyAiFindings = (analysis) => {
   aiStatus.textContent = hasHumanWarning ? 'Retake needed' : 'AI preview';
   aiStatus.classList.toggle('is-warning', hasHumanWarning || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
   applySuggestionButton.hidden = false;
+
+  if (hasHumanWarning) {
+    setChecklistItem('human', 'warning', 'Human subject needs review');
+    setChecklistItem('head', 'warning', 'Head 50-69% blocked');
+    setChecklistItem('background', 'warning', 'Background check blocked');
+    setChecklistItem('lighting', 'warning', 'Eyes 56-69% blocked');
+  } else {
+    setChecklistItem('human', 'pass', 'Human subject');
+    setChecklistItem('background', hasBackgroundIssue ? 'warning' : 'pass', hasBackgroundIssue ? 'Background needs review' : 'Background: plain white');
+    setChecklistItem('lighting', hasLightingIssue ? 'warning' : 'pass', hasLightingIssue ? 'Eyes / lighting review' : 'Eyes 56-69%');
+  }
 
   setAiCheck(
     'human',
@@ -398,6 +476,50 @@ const requestPhotoAnalysis = async (file) => {
   }
 };
 
+const requestPhotoSuggestion = async (file) => {
+  if (!currentPhotoDataUrl) {
+    return;
+  }
+
+  const requestId = ++suggestionRequestId;
+  aiStatus.textContent = 'Preparing options...';
+  advisorSummary.textContent = 'AI is checking the photo against the selected passport spec.';
+  aiStatus.classList.remove('is-warning');
+
+  try {
+    const response = await fetch('/api/photo/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageDataUrl: currentPhotoDataUrl,
+        filename: file.name,
+        country: country.value,
+        documentType: documentType.value
+      })
+    });
+    const suggestion = await response.json();
+    const analysis = mergeLocalImageFindings(suggestion.analysis || suggestion);
+    if (requestId !== suggestionRequestId || !currentImageFile) {
+      return;
+    }
+
+    applyAiFindings(analysis);
+    await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || suggestion.variants?.whiteBackgroundDataUrl || '');
+    await setVariant('white', suggestion.variants?.whiteBackgroundDataUrl || '');
+    await setVariant('lighting', suggestion.variants?.lightingDataUrl || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
+    if (analysis.isHuman !== false && suggestion.message) {
+      advisorSummary.textContent = suggestion.message;
+    }
+  } catch {
+    if (requestId !== suggestionRequestId || !currentImageFile) {
+      return;
+    }
+    await setVariant('lighting', await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
+    runAiAssessment(file);
+    advisorSummary.textContent = 'AI suggested photo is unavailable, so SnapPass kept the original and offered a safe lighting preview.';
+  }
+};
+
 const resetAiAssessment = () => {
   aiStatus.textContent = 'Waiting for photo';
   aiStatus.classList.remove('is-warning');
@@ -436,10 +558,9 @@ const loadImage = (src) => new Promise((resolve, reject) => {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-const processPhotoDataUrl = async (sourceDataUrl) => {
-  const shouldReplaceBackground = selectedBackgroundMode !== 'keep-original';
-  const shouldEnhanceLighting = lightingMode.value === 'auto-enhance' || selectedBackgroundMode === 'ai-cleanup';
-  if (!shouldReplaceBackground && !shouldEnhanceLighting) {
+const processPhotoDataUrl = async (sourceDataUrl, options = {}) => {
+  const shouldEnhanceLighting = options.forceLighting || lightingMode.value === 'auto-enhance';
+  if (!shouldEnhanceLighting) {
     return sourceDataUrl;
   }
 
@@ -452,26 +573,6 @@ const processPhotoDataUrl = async (sourceDataUrl) => {
 
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   const pixels = imageData.data;
-  const edgeSamples = [];
-  const sampleStep = Math.max(1, Math.floor(Math.min(canvas.width, canvas.height) / 80));
-
-  for (let y = 0; y < canvas.height; y += sampleStep) {
-    for (let x = 0; x < canvas.width; x += sampleStep) {
-      const isEdge = x < canvas.width * 0.12 || x > canvas.width * 0.88 || y < canvas.height * 0.12 || y > canvas.height * 0.88;
-      if (!isEdge) {
-        continue;
-      }
-      const index = (y * canvas.width + x) * 4;
-      edgeSamples.push([pixels[index], pixels[index + 1], pixels[index + 2]]);
-    }
-  }
-
-  const edgeAverage = edgeSamples.reduce((sum, color) => [
-    sum[0] + color[0],
-    sum[1] + color[1],
-    sum[2] + color[2]
-  ], [0, 0, 0]).map((value) => value / Math.max(1, edgeSamples.length));
-
   let brightnessTotal = 0;
   for (let index = 0; index < pixels.length; index += 4) {
     brightnessTotal += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3;
@@ -484,20 +585,6 @@ const processPhotoDataUrl = async (sourceDataUrl) => {
     const red = pixels[index];
     const green = pixels[index + 1];
     const blue = pixels[index + 2];
-    const brightness = (red + green + blue) / 3;
-    const colorSpread = Math.max(red, green, blue) - Math.min(red, green, blue);
-    const edgeDistance = Math.hypot(red - edgeAverage[0], green - edgeAverage[1], blue - edgeAverage[2]);
-    const looksLikeBackground = shouldReplaceBackground && (
-      edgeDistance < 62 ||
-      (brightness > 208 && colorSpread < 42)
-    );
-
-    if (looksLikeBackground) {
-      pixels[index] = selectedBackgroundMode === 'ai-cleanup' ? 250 : 255;
-      pixels[index + 1] = selectedBackgroundMode === 'ai-cleanup' ? 250 : 255;
-      pixels[index + 2] = selectedBackgroundMode === 'ai-cleanup' ? 246 : 255;
-      continue;
-    }
 
     if (shouldEnhanceLighting) {
       pixels[index] = clamp((red - 128) * contrast + 128 + lift, 0, 255);
@@ -565,21 +652,21 @@ const requestBackgroundEdit = async () => {
     if (backgroundResultDataUrl) {
       photoFrame.classList.remove('subject-mask');
       backgroundNote.textContent = result.message || 'AI background cleanup applied.';
-      applyClientPhotoProcessing();
+      const variantName = selectedBackgroundMode === 'ai-cleanup' ? 'ai' : 'white';
+      await setVariant(variantName, backgroundResultDataUrl);
+      await selectVariant(variantName);
       return;
     }
 
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = result.message || 'AI cleanup needs a server API key. Using local background/lighting cleanup without masking over the subject.';
-    applyClientPhotoProcessing();
+    backgroundNote.textContent = result.message || 'AI cleanup needs a server API key. Keeping the selected photo unchanged.';
   } catch {
     if (requestId !== backgroundRequestId || !currentImageFile) {
       return;
     }
     backgroundResultDataUrl = '';
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = 'AI cleanup is unavailable. Using local background/lighting cleanup without masking over the subject.';
-    applyClientPhotoProcessing();
+    backgroundNote.textContent = 'AI cleanup is unavailable. Keeping the selected photo unchanged.';
   }
 };
 
@@ -595,8 +682,8 @@ const applyBackgroundMode = () => {
 
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
-    'replace-white': 'Replacing likely background pixels with white locally. Server AI can refine this when configured.',
-    'ai-cleanup': 'Cleaning likely background pixels and gently enhancing light while preserving facial features.'
+    'replace-white': 'Requesting a server-side white-background variant. The original stays available.',
+    'ai-cleanup': 'Requesting an AI suggested photo while preserving facial features.'
   };
 
   backgroundNote.textContent = backgroundMessages[selectedBackgroundMode];
@@ -605,9 +692,8 @@ const applyBackgroundMode = () => {
     return;
   }
 
-  applyClientPhotoProcessing();
-
   if (selectedBackgroundMode === 'keep-original') {
+    selectVariant(selectedVariant && photoVariants[selectedVariant] ? selectedVariant : 'original');
     if (localImageFindings.backgroundPlain) {
       setChecklistItem('background', 'pass', 'Background: plain white');
       setAiCheck('background', 'pass', 'Background appears plain white or off-white.');
@@ -619,19 +705,22 @@ const applyBackgroundMode = () => {
     return;
   }
 
-  setChecklistItem('background', 'pass', 'Background: plain white');
-  setAiCheck('background', 'pass', selectedBackgroundMode === 'ai-cleanup'
-    ? 'AI cleanup preview removes background clutter while preserving facial features.'
-    : 'Background will export as white.');
+  setChecklistItem('background', 'warning', 'AI background pending');
+  setAiCheck('background', 'warning', selectedBackgroundMode === 'ai-cleanup'
+    ? 'AI suggested photo is being prepared on the server.'
+    : 'White background variant is being prepared on the server.');
   requestBackgroundEdit();
 };
 
-const applyLightingMode = () => {
+const applyLightingMode = async () => {
   if (!currentImageFile) {
     return;
   }
 
   if (lightingMode.value === 'auto-enhance') {
+    const lightingDataUrl = photoVariants.lighting || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true });
+    await setVariant('lighting', lightingDataUrl);
+    await selectVariant('lighting');
     setChecklistItem('lighting', 'pass', 'Lighting enhanced');
     setAiCheck('lighting', 'pass', 'Lighting is gently balanced while preserving the original face.');
     if (selectedBackgroundMode === 'keep-original') {
@@ -641,8 +730,6 @@ const applyLightingMode = () => {
     setChecklistItem('lighting', 'pass', 'Lighting looks good');
     setAiCheck('lighting', 'pass', 'Lighting appears even enough for preview.');
   }
-
-  applyClientPhotoProcessing();
 };
 
 const evaluateCropFit = () => {
@@ -658,6 +745,14 @@ const evaluateCropFit = () => {
 
   statusPill.classList.toggle('is-danger', isDanger);
   statusPill.classList.toggle('is-warning', isWarning && !isDanger);
+
+  if (currentAiFindings.hasHumanWarning) {
+    statusPill.textContent = 'Retake needed';
+    statusPill.classList.add('is-warning');
+    setChecklistItem('head', 'warning', 'Head 50-69% blocked');
+    setAiCheck('head', 'warning', 'Head geometry cannot be checked until a human passport-style portrait is detected.');
+    return;
+  }
 
   if (isDanger) {
     statusPill.textContent = 'Fix crop';
@@ -691,6 +786,13 @@ const showLoadedState = async (file) => {
   currentPhotoDataUrl = '';
   backgroundResultDataUrl = '';
   processedPhotoDataUrl = '';
+  selectedVariant = 'original';
+  photoVariants = {
+    original: '',
+    ai: '',
+    white: '',
+    lighting: ''
+  };
   selectRandomQuote();
   photoPreview.src = URL.createObjectURL(file);
   photoPreview.alt = `Preview of ${file.name}`;
@@ -698,6 +800,7 @@ const showLoadedState = async (file) => {
   adjustmentPanel.hidden = false;
   exportPanel.hidden = false;
   printPreviewPanel.hidden = false;
+  variantPanel.hidden = false;
   statusPill.textContent = 'Review lighting';
   statusPill.classList.add('is-warning');
   statusPill.classList.remove('is-danger');
@@ -713,11 +816,13 @@ const showLoadedState = async (file) => {
     }
     photoPreview.src = currentPhotoDataUrl;
     await photoPreview.decode();
+    await setVariant('original', currentPhotoDataUrl);
+    await selectVariant('original');
     localImageFindings = analyzePortraitPixels();
     applyBackgroundMode();
-    applyLightingMode();
+    await applyLightingMode();
     runAiAssessment(file);
-    await requestPhotoAnalysis(file);
+    await requestPhotoSuggestion(file);
   } catch {
     runAiAssessment(file);
   }
@@ -728,11 +833,20 @@ const resetState = () => {
   currentPhotoDataUrl = '';
   backgroundResultDataUrl = '';
   processedPhotoDataUrl = '';
+  selectedVariant = 'original';
+  photoVariants = {
+    original: '',
+    ai: '',
+    white: '',
+    lighting: ''
+  };
   selectedBackgroundMode = 'keep-original';
   analysisRequestId += 1;
   backgroundRequestId += 1;
   processingRequestId += 1;
+  suggestionRequestId += 1;
   currentAiFindings = {
+    hasHumanWarning: false,
     hasHeadIssue: false,
     recommendedZoom: 100,
     recommendedRotation: 0
@@ -757,6 +871,15 @@ const resetState = () => {
   adjustmentPanel.hidden = true;
   exportPanel.hidden = true;
   printPreviewPanel.hidden = true;
+  variantPanel.hidden = true;
+  variantCards.forEach((card) => {
+    card.classList.toggle('is-selected', card.dataset.variant === 'original');
+    card.disabled = card.dataset.variant !== 'original';
+  });
+  [variantOriginalPreview, variantAiPreview, variantWhitePreview, variantLightingPreview].forEach((preview) => {
+    preview.removeAttribute('src');
+    preview.alt = '';
+  });
   zoomRange.value = '100';
   rotateRange.value = '0';
   backgroundMode.value = 'keep-original';
@@ -1103,6 +1226,10 @@ phoneUploadModal.addEventListener('click', (event) => {
   if (event.target === phoneUploadModal) {
     closePhoneUploadModal();
   }
+});
+
+variantCards.forEach((card) => {
+  card.addEventListener('click', () => selectVariant(card.dataset.variant));
 });
 
 updateRequirementSummary();

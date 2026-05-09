@@ -293,6 +293,66 @@ const handleBackground = async (request, response) => {
   }
 };
 
+const handleSuggest = async (request, response) => {
+  try {
+    const body = await readJsonBody(request);
+    if (!body.imageDataUrl) {
+      sendJson(response, 400, { error: 'imageDataUrl is required' });
+      return;
+    }
+
+    const baseAnalysis = fallbackAnalysis(body);
+    if (!openAiApiKey) {
+      sendJson(response, 200, {
+        mode: 'server fallback',
+        analysis: baseAnalysis,
+        variants: {
+          aiSuggestedDataUrl: null,
+          whiteBackgroundDataUrl: null,
+          lightingDataUrl: null
+        },
+        message: 'AI suggested photo needs OPENAI_API_KEY. Original photo remains selected; local lighting preview is available.'
+      });
+      return;
+    }
+
+    const analysis = await analyzeWithOpenAi(body);
+    let whiteBackgroundDataUrl = null;
+    try {
+      whiteBackgroundDataUrl = await editBackgroundWithOpenAi({ ...body, mode: 'replace-white' });
+    } catch {
+      whiteBackgroundDataUrl = null;
+    }
+
+    sendJson(response, 200, {
+      mode: 'openai',
+      analysis: { ...baseAnalysis, ...analysis },
+      variants: {
+        aiSuggestedDataUrl: whiteBackgroundDataUrl,
+        whiteBackgroundDataUrl,
+        lightingDataUrl: null
+      },
+      message: whiteBackgroundDataUrl
+        ? 'AI suggested and white-background variants are ready. Choose the version you prefer.'
+        : 'AI analysis is ready. Background editing was unavailable, so the original remains selected.'
+    });
+  } catch (error) {
+    sendJson(response, 200, {
+      mode: 'server fallback',
+      analysis: {
+        ...fallbackAnalysis({}),
+        warnings: [`AI suggestion unavailable: ${error.message}`]
+      },
+      variants: {
+        aiSuggestedDataUrl: null,
+        whiteBackgroundDataUrl: null,
+        lightingDataUrl: null
+      },
+      message: `AI suggestion unavailable: ${error.message}`
+    });
+  }
+};
+
 const readMobileSession = (url = '') => {
   const match = url.match(/^\/api\/mobile-upload\/([^/?#]+)/);
   return match ? decodeURIComponent(match[1]) : '';
@@ -359,6 +419,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'POST' && request.url === '/api/photo/analyze') {
     await handleAnalyze(request, response);
+    return;
+  }
+
+  if (request.method === 'POST' && request.url === '/api/photo/suggest') {
+    await handleSuggest(request, response);
     return;
   }
 

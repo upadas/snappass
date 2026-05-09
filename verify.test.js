@@ -169,6 +169,7 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(js, /OPENAI_API_KEY|backgroundResultDataUrl/);
   assert.match(js, /backgroundPlain/);
   assert.match(js, /lightingEven/);
+  assert.doesNotMatch(js, /looksLikeBackground/);
   assert.doesNotMatch(js, /drawMaskedSubject/);
   assert.doesNotMatch(css, /subject-mask img/);
   assert.match(playwrightTest, /backgroundMode/);
@@ -181,13 +182,17 @@ test('prototype includes AI assessment checks for human subject, lighting, and h
   const js = read('app.js');
 
   assert.match(html, /id="aiAssessment"/);
-  assert.match(html, /Human subject/);
-  assert.match(html, /Lighting/);
-  assert.match(html, /Head centered/);
-  assert.match(html, /Background/);
+  assert.match(html, /id="advisorSummary"/);
+  assert.match(html, /id="variantPanel"/);
+  assert.match(html, /AI suggested/);
+  assert.match(html, /White background/);
+  assert.match(html, /Lighting enhanced/);
+  assert.match(html, /passport-guide/);
   assert.match(html, /id="humanWarning"/);
   assert.match(js, /runAiAssessment/);
-  assert.match(js, /requestPhotoAnalysis/);
+  assert.match(js, /requestPhotoSuggestion/);
+  assert.match(js, /\/api\/photo\/suggest/);
+  assert.match(js, /photoVariants/);
   assert.match(js, /applyAiFindings/);
   assert.match(js, /analyzePortraitPixels/);
   assert.match(js, /mergeLocalImageFindings/);
@@ -237,6 +242,7 @@ test('server exposes private AI photo agent endpoints', () => {
 
   assert.match(server, /OPENAI_API_KEY/);
   assert.match(server, /\/api\/photo\/analyze/);
+  assert.match(server, /\/api\/photo\/suggest/);
   assert.match(server, /\/api\/photo\/background/);
   assert.match(server, /responses/);
   assert.match(server, /images\/edits/);

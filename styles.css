@@ -466,6 +466,69 @@ h1 {
   display: none;
 }
 
+.passport-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.photo-frame.has-photo .passport-guide {
+  opacity: 0.7;
+}
+
+.guide-center {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  bottom: 5%;
+  border-left: 1px dashed rgba(16, 37, 31, 0.56);
+  transform: translateX(-50%);
+}
+
+.guide-head-max,
+.guide-head-min {
+  position: absolute;
+  left: 50%;
+  border: 1.5px solid rgba(16, 37, 31, 0.62);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.guide-head-max {
+  top: 10%;
+  width: 50%;
+  height: 58%;
+}
+
+.guide-head-min {
+  top: 17%;
+  width: 38%;
+  height: 46%;
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.guide-eye-line {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 60%;
+  border-top: 1.5px dashed rgba(22, 127, 99, 0.72);
+}
+
+.guide-shoulders {
+  position: absolute;
+  left: 11%;
+  right: 11%;
+  bottom: 10%;
+  height: 22%;
+  border-bottom: 2px solid rgba(16, 37, 31, 0.45);
+  border-radius: 50% 50% 8px 8px;
+}
+
 .upload-watermark {
   position: absolute;
   inset: auto 10px 12px;
@@ -732,41 +795,53 @@ h1 {
   line-height: 1.35;
 }
 
-.ai-grid {
+.advisor-summary {
+  margin: 0 0 10px;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.variant-panel {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
-.ai-check {
+.variant-card {
   display: grid;
-  gap: 5px;
-  min-height: 56px;
+  gap: 6px;
+  min-height: auto;
   padding: 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: #fff;
-}
-
-.ai-check strong {
   color: var(--color-ink);
-  font-size: 0.82rem;
+  cursor: pointer;
 }
 
-.ai-check span {
-  color: var(--color-muted);
-  font-size: 0.74rem;
-  line-height: 1.35;
+.variant-card.is-selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(22, 127, 99, 0.14);
 }
 
-.ai-check.is-pass {
-  border-color: #b8dccc;
+.variant-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
+.variant-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 6px;
   background: #f4fbf7;
 }
 
-.ai-check.is-warning {
-  border-color: #e9c987;
-  background: var(--color-warning-bg);
+.variant-card span {
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.2;
 }
 
 .ai-note {
@@ -1323,7 +1398,7 @@ h1 {
 
   .field-grid,
   .preview-layout,
-  .ai-grid,
+  .variant-panel,
   .export-grid,
   .stage-actions,
   .step-grid,

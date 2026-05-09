@@ -57,7 +57,7 @@ const uploadSample = async (page, name = 'portrait.svg', buffer = portraitSvg) =
     buffer
   });
   await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
-  await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() !== 'Analyzing photo...');
+  await page.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
 };
 
 const dropSample = async (page, name = 'portrait.svg', buffer = portraitSvg) => {
@@ -71,7 +71,7 @@ const dropSample = async (page, name = 'portrait.svg', buffer = portraitSvg) => 
     stage.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, { filename: name, svg: buffer.toString('utf8') });
   await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
-  await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() !== 'Analyzing photo...');
+  await page.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
 };
 
 const run = async () => {
@@ -138,6 +138,7 @@ const run = async () => {
     await page.waitForFunction(() => document.querySelector('#phoneUploadModal').hidden);
 
     await dropSample(page);
+    await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('.passport-guide')).opacity) > 0);
     const uploaded = await page.evaluate(() => ({
       exportHidden: document.querySelector('#exportPanel').hidden,
       status: document.querySelector('#statusPill').textContent.trim(),
@@ -160,6 +161,11 @@ const run = async () => {
       frameToStageRatio: document.querySelector('#photoFrame').getBoundingClientRect().width / document.querySelector('#photoStage').getBoundingClientRect().width,
       checkerPadding: Math.round((document.querySelector('#photoStage').getBoundingClientRect().width - document.querySelector('#photoFrame').getBoundingClientRect().width) / 2),
       dropReady: document.querySelector('#photoStage').classList.contains('is-drop-ready'),
+      guideVisible: getComputedStyle(document.querySelector('.passport-guide')).opacity !== '0',
+      variantHidden: document.querySelector('#variantPanel').hidden,
+      variantCount: document.querySelectorAll('.variant-card').length,
+      selectedVariant: document.querySelector('.variant-card.is-selected')?.dataset.variant,
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -185,6 +191,11 @@ const run = async () => {
     assert.ok(uploaded.frameToStageRatio > 0.7);
     assert.ok(uploaded.checkerPadding >= 36 && uploaded.checkerPadding <= 56);
     assert.equal(uploaded.dropReady, false);
+    assert.equal(uploaded.guideVisible, true);
+    assert.equal(uploaded.variantHidden, false);
+    assert.equal(uploaded.variantCount, 4);
+    assert.equal(uploaded.selectedVariant, 'original');
+    assert.match(uploaded.advisorSummary, /AI|Original|photo/i);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
@@ -242,7 +253,7 @@ const run = async () => {
     assert.match(afterDrag.status, /Preview ready|Adjust crop|Fix crop/);
 
     await page.selectOption('#backgroundMode', 'replace-white');
-    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('server API key'));
+    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('OPENAI_API_KEY') || document.querySelector('#backgroundNote').textContent.includes('server API key'));
     const backgroundState = await page.evaluate(() => ({
       mode: document.querySelector('#backgroundMode').value,
       whitePreview: document.querySelector('#photoFrame').classList.contains('background-white'),
@@ -253,8 +264,8 @@ const run = async () => {
     assert.equal(backgroundState.mode, 'replace-white');
     assert.equal(backgroundState.whitePreview, true);
     assert.equal(backgroundState.destructiveMask, false);
-    assert.equal(backgroundState.backgroundText, 'Background: plain white');
-    assert.match(backgroundState.backgroundNote, /server API key/);
+    assert.match(backgroundState.backgroundText, /AI background pending|Background needs review|Background: plain white/);
+    assert.match(backgroundState.backgroundNote, /OPENAI_API_KEY|server API key|unchanged/);
 
     await page.selectOption('#lightingMode', 'auto-enhance');
     await page.waitForFunction(() => document.querySelector('[data-check="lighting"]').textContent.includes('Lighting enhanced'));
@@ -305,12 +316,16 @@ const run = async () => {
     const aiWarning = await warningPage.evaluate(() => ({
       aiStatus: document.querySelector('#aiStatus').textContent.trim(),
       humanWarningHidden: document.querySelector('#humanWarning').hidden,
-      humanCheck: document.querySelector('[data-ai-check="human"]').textContent.trim(),
-      warningCount: document.querySelectorAll('.ai-check.is-warning').length
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
+      humanCheck: document.querySelector('[data-check="human"]').textContent.trim(),
+      headCheck: document.querySelector('[data-check="head"]').textContent.trim(),
+      warningCount: document.querySelectorAll('.check-item.is-warning').length
     }));
     assert.equal(aiWarning.aiStatus, 'Retake needed');
     assert.equal(aiWarning.humanWarningHidden, false);
-    assert.match(aiWarning.humanCheck, /No clear human face area detected/);
+    assert.match(aiWarning.advisorSummary, /No clear human face area detected|Human subject|human passport-style portrait/i);
+    assert.match(aiWarning.humanCheck, /Human subject needs review/);
+    assert.match(aiWarning.headCheck, /blocked/);
     assert.ok(aiWarning.warningCount >= 1);
     await warningPage.close();
   } finally {
