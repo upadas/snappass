@@ -60,6 +60,20 @@ const uploadSample = async (page, name = 'portrait.svg', buffer = portraitSvg) =
   await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() !== 'Analyzing photo...');
 };
 
+const dropSample = async (page, name = 'portrait.svg', buffer = portraitSvg) => {
+  await page.evaluate(({ filename, svg }) => {
+    const file = new File([svg], filename, { type: 'image/svg+xml' });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    const stage = document.querySelector('#photoStage');
+    stage.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
+    stage.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }));
+    stage.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, { filename: name, svg: buffer.toString('utf8') });
+  await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+  await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() !== 'Analyzing photo...');
+};
+
 const run = async () => {
   const server = await startServer();
   const browser = await chromium.launch({ headless: true });
@@ -74,6 +88,7 @@ const run = async () => {
       uploadButtonCount: Array.from(document.querySelectorAll('label[for="photoInput"]'))
         .filter((label) => label.offsetParent !== null).length,
       watermark: document.querySelector('#photoStage').textContent,
+      dropZoneRole: document.querySelector('#photoStage').getAttribute('role'),
       phoneButton: document.querySelector('#phoneUploadButton').textContent.trim(),
       requirement: document.querySelector('#requirementSummary').textContent.trim(),
       specStrip: document.querySelector('.spec-strip').textContent,
@@ -83,6 +98,8 @@ const run = async () => {
     assert.equal(initial.exportHidden, true);
     assert.equal(initial.uploadButtonCount, 1);
     assert.match(initial.watermark, /Click to upload/);
+    assert.match(initial.watermark, /drop photo/);
+    assert.equal(initial.dropZoneRole, 'button');
     assert.equal(initial.phoneButton, 'Scan QR from phone');
     assert.match(initial.requirement, /600 x 600 px minimum/);
     assert.match(initial.requirement, /50-69%/);
@@ -120,7 +137,7 @@ const run = async () => {
     await page.click('#phoneUploadClose');
     await page.waitForFunction(() => document.querySelector('#phoneUploadModal').hidden);
 
-    await uploadSample(page);
+    await dropSample(page);
     const uploaded = await page.evaluate(() => ({
       exportHidden: document.querySelector('#exportPanel').hidden,
       status: document.querySelector('#statusPill').textContent.trim(),
@@ -140,6 +157,8 @@ const run = async () => {
       prepStepCount: document.querySelectorAll('.agent-prep div').length,
       frameAspect: Math.round(document.querySelector('#photoFrame').getBoundingClientRect().width) === Math.round(document.querySelector('#photoFrame').getBoundingClientRect().height),
       stageAspect: Math.round(document.querySelector('#photoStage').getBoundingClientRect().width) === Math.round(document.querySelector('#photoStage').getBoundingClientRect().height),
+      frameToStageRatio: document.querySelector('#photoFrame').getBoundingClientRect().width / document.querySelector('#photoStage').getBoundingClientRect().width,
+      dropReady: document.querySelector('#photoStage').classList.contains('is-drop-ready'),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
       printPreviewHeight: document.querySelector('#printSheetPreview').height
@@ -162,6 +181,8 @@ const run = async () => {
     assert.equal(uploaded.prepStepCount, 4);
     assert.equal(uploaded.frameAspect, true);
     assert.equal(uploaded.stageAspect, true);
+    assert.ok(uploaded.frameToStageRatio < 0.6);
+    assert.equal(uploaded.dropReady, false);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);

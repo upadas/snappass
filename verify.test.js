@@ -25,14 +25,17 @@ test('upload controls live beside the preview placeholder and placeholder upload
 
   assert.match(html, /id="photoStage"/);
   assert.match(html, /role="button"/);
-  assert.match(html, /Click to upload/);
+  assert.match(html, /Click to upload or drop photo/);
   assert.doesNotMatch(html, /Watermark/);
   assert.match(html, /stage-actions/);
   assert.doesNotMatch(html, /class="upload-actions"/);
   assert.match(css, /\.stage-actions/);
+  assert.match(css, /\.photo-stage\.is-drop-ready/);
   assert.match(css, /\.upload-watermark/);
   assert.match(js, /photoStage\.addEventListener\('click'/);
   assert.match(js, /photoStage\.addEventListener\('keydown'/);
+  assert.match(js, /photoStage\.addEventListener\('drop'/);
+  assert.match(js, /loadPhotoFile/);
 });
 
 test('brand includes logo assets and favicon links', () => {

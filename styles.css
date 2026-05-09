@@ -407,9 +407,18 @@ h1 {
   outline-offset: 2px;
 }
 
+.photo-stage.is-drop-ready {
+  outline: 3px solid rgba(22, 127, 99, 0.52);
+  outline-offset: 3px;
+  background:
+    linear-gradient(45deg, rgba(22, 127, 99, 0.1) 25%, transparent 25% 75%, rgba(22, 127, 99, 0.1) 75%),
+    linear-gradient(45deg, rgba(22, 127, 99, 0.1) 25%, transparent 25% 75%, rgba(22, 127, 99, 0.1) 75%),
+    #e7f6ef;
+}
+
 .photo-frame {
   position: relative;
-  width: min(76%, 330px);
+  width: min(57%, 248px);
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border: 1px solid #b8cbc3;

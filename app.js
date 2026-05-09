@@ -144,6 +144,21 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+const loadPhotoFile = (file) => {
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    resetState();
+    statusPill.textContent = 'Unsupported file';
+    statusPill.classList.add('is-warning');
+    return;
+  }
+
+  showLoadedState(file);
+};
+
 const dataUrlToFile = async (dataUrl, filename = 'phone-upload.png') => {
   const response = await fetch(dataUrl);
   const blob = await response.blob();
@@ -966,18 +981,7 @@ documentType.addEventListener('change', updateRequirementSummary);
 
 photoInput.addEventListener('change', (event) => {
   const [file] = event.target.files;
-  if (!file) {
-    return;
-  }
-
-  if (!file.type.startsWith('image/')) {
-    resetState();
-    statusPill.textContent = 'Unsupported file';
-    statusPill.classList.add('is-warning');
-    return;
-  }
-
-  showLoadedState(file);
+  loadPhotoFile(file);
 });
 
 zoomRange.addEventListener('input', updatePreviewTransform);
@@ -996,6 +1000,30 @@ photoStage.addEventListener('keydown', (event) => {
     event.preventDefault();
     photoInput.click();
   }
+});
+
+photoStage.addEventListener('dragenter', (event) => {
+  event.preventDefault();
+  photoStage.classList.add('is-drop-ready');
+});
+
+photoStage.addEventListener('dragover', (event) => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+  photoStage.classList.add('is-drop-ready');
+});
+
+photoStage.addEventListener('dragleave', (event) => {
+  if (!photoStage.contains(event.relatedTarget)) {
+    photoStage.classList.remove('is-drop-ready');
+  }
+});
+
+photoStage.addEventListener('drop', (event) => {
+  event.preventDefault();
+  photoStage.classList.remove('is-drop-ready');
+  const [file] = Array.from(event.dataTransfer.files || []);
+  loadPhotoFile(file);
 });
 
 applySuggestionButton.addEventListener('click', () => {
