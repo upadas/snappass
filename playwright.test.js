@@ -57,6 +57,7 @@ const uploadSample = async (page, name = 'portrait.svg', buffer = portraitSvg) =
     buffer
   });
   await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+  await page.waitForFunction(() => !document.querySelector('[data-variant="lighting"]').disabled);
   await page.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
 };
 
@@ -71,6 +72,7 @@ const dropSample = async (page, name = 'portrait.svg', buffer = portraitSvg) => 
     stage.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, { filename: name, svg: buffer.toString('utf8') });
   await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+  await page.waitForFunction(() => !document.querySelector('[data-variant="lighting"]').disabled);
   await page.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
 };
 
@@ -106,6 +108,21 @@ const run = async () => {
     assert.match(initial.requirement, /56-69%/);
     assert.match(initial.specStrip, /Head 50-69%/);
     assert.equal(initial.overflow, false);
+
+    await page.selectOption('#country', 'in');
+    const indiaSpec = await page.evaluate(() => ({
+      requirement: document.querySelector('#requirementSummary').textContent.trim(),
+      pills: Array.from(document.querySelectorAll('[data-spec-pill]')).map((item) => item.textContent.trim()),
+      sizeCheck: document.querySelector('[data-check="size"]').textContent.trim(),
+      printLabel: document.querySelector('#printPreviewLabel').textContent.trim()
+    }));
+    assert.match(indiaSpec.requirement, /51 x 51 mm/);
+    assert.deepEqual(indiaSpec.pills, ['51 x 51 mm', '600 x 600 px+', 'Full face visible', 'Eyes visible']);
+    assert.equal(indiaSpec.sizeCheck, '51 x 51 mm');
+    assert.equal(indiaSpec.printLabel, '4 photos, 51 x 51 mm each');
+    const indiaSpecResponse = await fetch(`${appUrl}api/photo/spec?country=in&documentType=passport`);
+    assert.match((await indiaSpecResponse.json()).markdown, /51 x 51 mm/);
+    await page.selectOption('#country', 'us');
 
     const requirementsGuide = await page.evaluate(() => ({
       title: document.querySelector('#passport-checklist-title').textContent.trim(),

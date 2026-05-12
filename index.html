@@ -80,7 +80,7 @@
                   <div class="print-preview-popover" id="printPreviewPanel" hidden role="tooltip" aria-label="Live printable 4x6 sheet preview popup">
                     <div class="print-preview-header">
                       <span>Live 4x6 preview</span>
-                      <strong>4 photos, 2 x 2 in each</strong>
+                      <strong id="printPreviewLabel">4 photos, 2 x 2 in each</strong>
                     </div>
                     <canvas class="print-preview-canvas" id="printSheetPreview" width="900" height="600" aria-label="Live printable 4x6 sheet preview"></canvas>
                   </div>
@@ -144,11 +144,11 @@
                     <button class="button button-secondary button-compact button-wide" type="button" id="phoneUploadButton">Scan QR from phone</button>
                   </div>
                   <p class="form-note" id="requirementSummary">US passport photo: 2 x 2 inches, 600 x 600 px minimum, head 50-69%, eyes 56-69% from bottom.</p>
-                  <div class="spec-strip" aria-label="US passport targets">
-                    <span>2 x 2 in</span>
-                    <span>600 x 600 px+</span>
-                    <span>Head 50-69%</span>
-                    <span>Eyes 56-69%</span>
+                  <div class="spec-strip" aria-label="Selected document photo targets">
+                    <span data-spec-pill="size">2 x 2 in</span>
+                    <span data-spec-pill="pixels">600 x 600 px+</span>
+                    <span data-spec-pill="head">Head 50-69%</span>
+                    <span data-spec-pill="eyes">Eyes 56-69%</span>
                   </div>
                 </form>
                 <div class="checklist" id="checklist" aria-label="Requirement checklist">

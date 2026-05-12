@@ -143,6 +143,16 @@ const readSpecMarkdown = (country = 'us', documentType = 'passport') => {
   ].join('\n');
 };
 
+const handleSpec = (response, searchParams) => {
+  const country = searchParams.get('country') || 'us';
+  const documentType = searchParams.get('documentType') || 'passport';
+  sendJson(response, 200, {
+    country,
+    documentType,
+    markdown: readSpecMarkdown(country, documentType)
+  });
+};
+
 const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
   const specMarkdown = readSpecMarkdown(country, documentType);
   const response = await fetch('https://api.openai.com/v1/responses', {
@@ -406,6 +416,7 @@ const resolvePath = (urlPath) => {
 };
 
 const server = http.createServer(async (request, response) => {
+  const parsedUrl = new URL(request.url || '/', 'http://localhost');
   const mobileSession = readMobileSession(request.url || '');
   if (mobileSession && request.method === 'POST') {
     await handleMobileUploadPost(request, response, mobileSession);
@@ -417,17 +428,22 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === 'POST' && request.url === '/api/photo/analyze') {
+  if (request.method === 'GET' && parsedUrl.pathname === '/api/photo/spec') {
+    handleSpec(response, parsedUrl.searchParams);
+    return;
+  }
+
+  if (request.method === 'POST' && parsedUrl.pathname === '/api/photo/analyze') {
     await handleAnalyze(request, response);
     return;
   }
 
-  if (request.method === 'POST' && request.url === '/api/photo/suggest') {
+  if (request.method === 'POST' && parsedUrl.pathname === '/api/photo/suggest') {
     await handleSuggest(request, response);
     return;
   }
 
-  if (request.method === 'POST' && request.url === '/api/photo/background') {
+  if (request.method === 'POST' && parsedUrl.pathname === '/api/photo/background') {
     await handleBackground(request, response);
     return;
   }

@@ -26,7 +26,9 @@ const backgroundNote = document.querySelector('#backgroundNote');
 const lightingMode = document.querySelector('#lightingMode');
 const applySuggestionButton = document.querySelector('#applySuggestionButton');
 const printPreviewPanel = document.querySelector('#printPreviewPanel');
+const printPreviewLabel = document.querySelector('#printPreviewLabel');
 const printSheetPreview = document.querySelector('#printSheetPreview');
+const specPills = Array.from(document.querySelectorAll('[data-spec-pill]'));
 const variantPanel = document.querySelector('#variantPanel');
 const variantCards = Array.from(document.querySelectorAll('.variant-card'));
 const variantOriginalPreview = document.querySelector('#variantOriginalPreview');
@@ -40,8 +42,7 @@ const phoneUploadQr = document.querySelector('#phoneUploadQr');
 const phoneUploadLink = document.querySelector('#phoneUploadLink');
 const phoneUploadStatus = document.querySelector('#phoneUploadStatus');
 
-const DIGITAL_PHOTO_SIZE = 600;
-const PASSPORT_PHOTO_SIZE = 600;
+const DEFAULT_OUTPUT_SIZE = 600;
 const PRINT_SHEET_WIDTH = 1800;
 const PRINT_SHEET_HEIGHT = 1200;
 const PRINT_PREVIEW_WIDTH = 900;
@@ -90,32 +91,194 @@ let localImageFindings = {
   lightingEven: true
 };
 
-const requirementCopy = {
+const documentSpecs = {
   us: {
-    passport: 'US passport photo: 2 x 2 inches, 600 x 600 px minimum, head 50-69%, eyes 56-69% from bottom.',
-    visa: 'US visa photo: 2 x 2 inches, neutral expression, plain light background.',
-    id: 'US ID photo: square crop, clear face, even lighting, simple background.',
-    baby: 'US baby passport photo: 2 x 2 inches, eyes visible, no parent hands in frame.'
+    passport: {
+      summary: 'US passport photo: 2 x 2 inches, 600 x 600 px minimum, head 50-69%, eyes 56-69% from bottom.',
+      size: '2 x 2 in',
+      pixels: '600 x 600 px+',
+      head: 'Head 50-69%',
+      eyes: 'Eyes 56-69%',
+      checklistSize: '2 x 2 / 600 px',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 photos, 2 x 2 in each'
+    },
+    visa: {
+      summary: 'US visa photo: 2 x 2 inches, 600 x 600 px minimum, neutral expression, plain light background.',
+      size: '2 x 2 in',
+      pixels: '600 x 600 px+',
+      head: 'Head 50-69%',
+      eyes: 'Eyes 56-69%',
+      checklistSize: '2 x 2 / 600 px',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 photos, 2 x 2 in each'
+    },
+    id: {
+      summary: 'US ID photo: square crop, clear face, even lighting, simple background.',
+      size: 'Square crop',
+      pixels: '600 x 600 px+',
+      head: 'Face centered',
+      eyes: 'Eyes visible',
+      checklistSize: 'Square / 600 px',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 square ID photos'
+    },
+    baby: {
+      summary: 'US baby passport photo: 2 x 2 inches, eyes visible, no parent hands in frame.',
+      size: '2 x 2 in',
+      pixels: '600 x 600 px+',
+      head: 'Head 50-69%',
+      eyes: 'Eyes visible',
+      checklistSize: '2 x 2 / 600 px',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 photos, 2 x 2 in each'
+    }
   },
   ca: {
-    passport: 'Canada passport photo: 50 x 70 mm, neutral expression, plain light background.',
-    visa: 'Canada visa photo: 35 x 45 mm, face centered, no shadows.',
-    id: 'Canada ID photo: front-facing image with clear facial features.',
-    baby: 'Canada baby photo: child alone, visible face, plain background.'
+    passport: {
+      summary: 'Canada passport photo: 50 x 70 mm, neutral expression, plain white or light background.',
+      size: '50 x 70 mm',
+      pixels: '600 x 840 px+',
+      head: 'Face 31-36 mm',
+      eyes: 'Eyes visible',
+      checklistSize: '50 x 70 mm',
+      outputWidth: 600,
+      outputHeight: 840,
+      printLabel: 'Canada 50 x 70 mm photos'
+    },
+    visa: {
+      summary: 'Canada visa photo: 35 x 45 mm, face centered, no shadows.',
+      size: '35 x 45 mm',
+      pixels: '420 x 540 px+',
+      head: 'Face centered',
+      eyes: 'Eyes visible',
+      checklistSize: '35 x 45 mm',
+      outputWidth: 420,
+      outputHeight: 540,
+      printLabel: 'Canada 35 x 45 mm photos'
+    },
+    id: {
+      summary: 'Canada ID photo: front-facing image with clear facial features.',
+      size: 'ID target',
+      pixels: '600 px+',
+      head: 'Face centered',
+      eyes: 'Eyes visible',
+      checklistSize: 'ID spec',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: 'Canada ID photos'
+    },
+    baby: {
+      summary: 'Canada baby photo: child alone, visible face, plain background.',
+      size: '50 x 70 mm',
+      pixels: '600 x 840 px+',
+      head: 'Face visible',
+      eyes: 'Eyes visible',
+      checklistSize: '50 x 70 mm',
+      outputWidth: 600,
+      outputHeight: 840,
+      printLabel: 'Canada baby photos'
+    }
   },
   uk: {
-    passport: 'UK passport photo: 35 x 45 mm, plain light background, neutral expression.',
-    visa: 'UK visa photo: 35 x 45 mm, clear face, even lighting.',
-    id: 'UK ID photo: recent front-facing image with no heavy shadows.',
-    baby: 'UK baby passport photo: child alone, face visible, plain background.'
+    passport: {
+      summary: 'UK passport photo: 35 x 45 mm, at least 600 x 750 px for digital, plain light background, neutral expression.',
+      size: '35 x 45 mm',
+      pixels: '600 x 750 px+',
+      head: 'Head 29-34 mm',
+      eyes: 'Eyes visible',
+      checklistSize: '35 x 45 mm',
+      outputWidth: 600,
+      outputHeight: 750,
+      printLabel: 'UK 35 x 45 mm photos'
+    },
+    visa: {
+      summary: 'UK visa photo: 35 x 45 mm, clear face, even lighting.',
+      size: '35 x 45 mm',
+      pixels: '600 x 750 px+',
+      head: 'Head 29-34 mm',
+      eyes: 'Eyes visible',
+      checklistSize: '35 x 45 mm',
+      outputWidth: 600,
+      outputHeight: 750,
+      printLabel: 'UK 35 x 45 mm photos'
+    },
+    id: {
+      summary: 'UK ID photo: recent front-facing image with no heavy shadows.',
+      size: '35 x 45 mm',
+      pixels: '600 x 750 px+',
+      head: 'Face centered',
+      eyes: 'Eyes visible',
+      checklistSize: '35 x 45 mm',
+      outputWidth: 600,
+      outputHeight: 750,
+      printLabel: 'UK ID photos'
+    },
+    baby: {
+      summary: 'UK baby passport photo: child alone, face visible, plain background.',
+      size: '35 x 45 mm',
+      pixels: '600 x 750 px+',
+      head: 'Face visible',
+      eyes: 'Eyes visible',
+      checklistSize: '35 x 45 mm',
+      outputWidth: 600,
+      outputHeight: 750,
+      printLabel: 'UK baby photos'
+    }
   },
   in: {
-    passport: 'India passport photo: 51 x 51 mm, white background, full face visible.',
-    visa: 'India visa photo: 51 x 51 mm, centered head, plain background.',
-    id: 'India ID photo: square crop, even lighting, face centered.',
-    baby: 'India baby passport photo: clear face, plain white background.'
+    passport: {
+      summary: 'India passport photo: 51 x 51 mm, 600 x 600 px minimum, white background, full face visible.',
+      size: '51 x 51 mm',
+      pixels: '600 x 600 px+',
+      head: 'Full face visible',
+      eyes: 'Eyes visible',
+      checklistSize: '51 x 51 mm',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 photos, 51 x 51 mm each'
+    },
+    visa: {
+      summary: 'India visa photo: 51 x 51 mm, centered head, plain white background.',
+      size: '51 x 51 mm',
+      pixels: '600 x 600 px+',
+      head: 'Head centered',
+      eyes: 'Eyes visible',
+      checklistSize: '51 x 51 mm',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 photos, 51 x 51 mm each'
+    },
+    id: {
+      summary: 'India ID photo: square crop, even lighting, face centered.',
+      size: 'Square crop',
+      pixels: '600 x 600 px+',
+      head: 'Face centered',
+      eyes: 'Eyes visible',
+      checklistSize: 'Square / 600 px',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: 'India ID photos'
+    },
+    baby: {
+      summary: 'India baby passport photo: 51 x 51 mm, clear face, plain white background.',
+      size: '51 x 51 mm',
+      pixels: '600 x 600 px+',
+      head: 'Face visible',
+      eyes: 'Eyes visible',
+      checklistSize: '51 x 51 mm',
+      outputWidth: 600,
+      outputHeight: 600,
+      printLabel: '4 photos, 51 x 51 mm each'
+    }
   }
 };
+
+let activeSpec = documentSpecs.us.passport;
 
 const setChecklist = (state) => {
   const items = Array.from(checklist.querySelectorAll('.check-item'));
@@ -131,6 +294,7 @@ const setChecklist = (state) => {
     }
     item.classList.add('is-pass');
   });
+  applySpecLabels();
 };
 
 const setChecklistItem = (name, state, message) => {
@@ -142,6 +306,26 @@ const setChecklistItem = (name, state, message) => {
   item.classList.remove('is-pending', 'is-pass', 'is-warning', 'is-danger');
   item.classList.add(`is-${state}`);
   item.lastChild.textContent = message;
+};
+
+const getSelectedSpec = () => {
+  const countrySpecs = documentSpecs[country.value] || documentSpecs.us;
+  return countrySpecs[documentType.value] || countrySpecs.passport || documentSpecs.us.passport;
+};
+
+const applySpecLabels = () => {
+  activeSpec = getSelectedSpec();
+  requirementSummary.textContent = activeSpec.summary;
+  specPills.forEach((pill) => {
+    const key = pill.dataset.specPill;
+    pill.textContent = activeSpec[key] || '';
+  });
+  printPreviewLabel.textContent = activeSpec.printLabel;
+  setChecklistItem('size', currentImageFile ? 'pass' : 'pending', activeSpec.checklistSize);
+  if (!currentImageFile) {
+    setChecklistItem('head', 'pending', activeSpec.head);
+    setChecklistItem('lighting', 'pending', activeSpec.eyes);
+  }
 };
 
 const setAiCheck = (name, state, message) => {
@@ -345,9 +529,9 @@ const runAiAssessment = (file) => {
 
   if (isLikelyNotHuman) {
     setChecklistItem('human', 'warning', 'Human subject needs review');
-    setChecklistItem('head', 'warning', 'Head 50-69% blocked');
+    setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
     setChecklistItem('background', 'warning', 'Background check blocked');
-    setChecklistItem('lighting', 'warning', 'Eyes 56-69% blocked');
+    setChecklistItem('lighting', 'warning', `${activeSpec.eyes} blocked`);
   }
 
   setAiCheck(
@@ -402,13 +586,13 @@ const applyAiFindings = (analysis) => {
 
   if (hasHumanWarning) {
     setChecklistItem('human', 'warning', 'Human subject needs review');
-    setChecklistItem('head', 'warning', 'Head 50-69% blocked');
+    setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
     setChecklistItem('background', 'warning', 'Background check blocked');
-    setChecklistItem('lighting', 'warning', 'Eyes 56-69% blocked');
+    setChecklistItem('lighting', 'warning', `${activeSpec.eyes} blocked`);
   } else {
     setChecklistItem('human', 'pass', 'Human subject');
     setChecklistItem('background', hasBackgroundIssue ? 'warning' : 'pass', hasBackgroundIssue ? 'Background needs review' : 'Background: plain white');
-    setChecklistItem('lighting', hasLightingIssue ? 'warning' : 'pass', hasLightingIssue ? 'Eyes / lighting review' : 'Eyes 56-69%');
+    setChecklistItem('lighting', hasLightingIssue ? 'warning' : 'pass', hasLightingIssue ? 'Lighting needs review' : activeSpec.eyes);
   }
 
   setAiCheck(
@@ -532,8 +716,13 @@ const resetAiAssessment = () => {
 };
 
 const updateRequirementSummary = () => {
-  const copy = requirementCopy[country.value][documentType.value];
-  requirementSummary.textContent = copy;
+  applySpecLabels();
+  if (currentImageFile) {
+    setChecklistItem('size', 'pass', activeSpec.checklistSize);
+    setChecklistItem('head', currentAiFindings.hasHeadIssue ? 'warning' : 'pass', currentAiFindings.hasHeadIssue ? 'Headshot needs adjustment' : activeSpec.head);
+    renderPrintSheetPreview();
+    requestPhotoSuggestion(currentImageFile);
+  }
 };
 
 const updatePreviewTransform = () => {
@@ -727,8 +916,8 @@ const applyLightingMode = async () => {
       backgroundNote.textContent = 'Auto lighting is on. The exported photo uses a gentle brightness and contrast balance.';
     }
   } else if (localImageFindings.lightingEven) {
-    setChecklistItem('lighting', 'pass', 'Lighting looks good');
-    setAiCheck('lighting', 'pass', 'Lighting appears even enough for preview.');
+    setChecklistItem('lighting', 'warning', 'Lighting needs review');
+    setAiCheck('lighting', 'warning', 'Lighting appears even, but SnapPass still recommends a quick review for shadows or glare.');
   }
 };
 
@@ -749,7 +938,7 @@ const evaluateCropFit = () => {
   if (currentAiFindings.hasHumanWarning) {
     statusPill.textContent = 'Retake needed';
     statusPill.classList.add('is-warning');
-    setChecklistItem('head', 'warning', 'Head 50-69% blocked');
+    setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
     setAiCheck('head', 'warning', 'Head geometry cannot be checked until a human passport-style portrait is detected.');
     return;
   }
@@ -777,7 +966,7 @@ const evaluateCropFit = () => {
   }
 
   statusPill.textContent = 'Preview ready';
-  setChecklistItem('head', 'pass', 'Head centered');
+  setChecklistItem('head', 'pass', activeSpec.head);
   setAiCheck('head', 'pass', 'Head appears centered inside the guide.');
 };
 
@@ -960,7 +1149,8 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   const context = canvas.getContext('2d');
   const zoom = Number(zoomRange.value) / 100;
   const rotate = Number(rotateRange.value) * Math.PI / 180;
-  const size = options.size || canvas.width;
+  const width = options.width || options.size || canvas.width;
+  const height = options.height || options.size || canvas.height;
 
   fillCanvasBackground(context, canvas);
 
@@ -972,7 +1162,7 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   context.rotate(rotate);
   context.scale(zoom, zoom);
 
-  const drawSubject = () => drawImageCover(context, photoPreview, -size / 2, -size / 2, size, size);
+  const drawSubject = () => drawImageCover(context, photoPreview, -width / 2, -height / 2, width, height);
 
   drawSubject();
   context.restore();
@@ -1000,18 +1190,19 @@ const drawImageCover = (context, image, x, y, width, height) => {
 };
 
 const getPrintSheetPositions = (scale = 1) => {
-  const size = PASSPORT_PHOTO_SIZE * scale;
+  const width = activeSpec.outputWidth * scale;
+  const height = activeSpec.outputHeight * scale;
   return [
-    [0, 0, size],
-    [size, 0, size],
-    [0, size, size],
-    [size, size, size]
+    [0, 0, width, height],
+    [width, 0, width, height],
+    [0, height, width, height],
+    [width, height, width, height]
   ];
 };
 
 const drawPrintQuote = (context, scale = 1) => {
-  const quoteX = PASSPORT_PHOTO_SIZE * 2 * scale;
-  const quoteWidth = PASSPORT_PHOTO_SIZE * scale;
+  const quoteX = activeSpec.outputWidth * 2 * scale;
+  const quoteWidth = Math.max(PRINT_SHEET_WIDTH * scale - quoteX, activeSpec.outputWidth * scale * 0.8);
   const quoteCenterX = quoteX + quoteWidth / 2;
   const quoteCenterY = PRINT_SHEET_HEIGHT * scale / 2;
 
@@ -1034,19 +1225,20 @@ const drawPrintQuote = (context, scale = 1) => {
 const drawPrintSheet = (canvas, scale = 1) => {
   const context = canvas.getContext('2d');
   const photoCanvas = document.createElement('canvas');
-  const scaledPhotoSize = PASSPORT_PHOTO_SIZE * scale;
-  photoCanvas.width = scaledPhotoSize;
-  photoCanvas.height = scaledPhotoSize;
-  drawPhotoToCanvas(photoCanvas, { size: scaledPhotoSize });
+  const scaledPhotoWidth = activeSpec.outputWidth * scale;
+  const scaledPhotoHeight = activeSpec.outputHeight * scale;
+  photoCanvas.width = scaledPhotoWidth;
+  photoCanvas.height = scaledPhotoHeight;
+  drawPhotoToCanvas(photoCanvas, { width: scaledPhotoWidth, height: scaledPhotoHeight });
 
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  getPrintSheetPositions(scale).forEach(([x, y, size]) => {
-    context.drawImage(photoCanvas, x, y, size, size);
+  getPrintSheetPositions(scale).forEach(([x, y, width, height]) => {
+    context.drawImage(photoCanvas, x, y, width, height);
     context.strokeStyle = '#d5e4dd';
     context.lineWidth = Math.max(1, 2 * scale);
-    context.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+    context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
   });
 
   drawPrintQuote(context, scale);
@@ -1082,9 +1274,9 @@ const downloadDigitalPhoto = () => {
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = DIGITAL_PHOTO_SIZE;
-  canvas.height = DIGITAL_PHOTO_SIZE;
-  drawPhotoToCanvas(canvas, { size: DIGITAL_PHOTO_SIZE });
+  canvas.width = activeSpec.outputWidth || DEFAULT_OUTPUT_SIZE;
+  canvas.height = activeSpec.outputHeight || DEFAULT_OUTPUT_SIZE;
+  drawPhotoToCanvas(canvas, { width: canvas.width, height: canvas.height });
   downloadCanvas(canvas, 'snappass-digital-photo.png');
 };
 

@@ -113,7 +113,9 @@ test('printable output uses a true 4x6 300 dpi sheet with live preview', () => {
 
   assert.match(js, /PRINT_SHEET_WIDTH\s*=\s*1800/);
   assert.match(js, /PRINT_SHEET_HEIGHT\s*=\s*1200/);
-  assert.match(js, /PASSPORT_PHOTO_SIZE\s*=\s*600/);
+  assert.match(js, /DEFAULT_OUTPUT_SIZE\s*=\s*600/);
+  assert.match(js, /activeSpec\.outputWidth/);
+  assert.match(js, /activeSpec\.outputHeight/);
   assert.match(js, /PRINT_QUOTES/);
   assert.match(js, /selectRandomQuote/);
   assert.match(js, /drawImageCover/);
@@ -128,11 +130,14 @@ test('printable output uses a true 4x6 300 dpi sheet with live preview', () => {
 test('working panel keeps upload, AI status, and print preview close together', () => {
   const html = read('index.html');
   const css = read('styles.css');
+  const js = read('app.js');
 
   assert.match(html, /preview-upload-actions/);
   assert.match(html, /for="photoInput">Upload photo/);
   assert.match(html, /class="wizard-card" aria-label="Photo setup"[\s\S]*id="country"[\s\S]*id="documentType"[\s\S]*class="stage-actions preview-upload-actions"/);
   assert.match(html, /id="printPreviewPanel"/);
+  assert.match(html, /data-spec-pill="size"/);
+  assert.match(html, /id="printPreviewLabel"/);
   assert.match(html, /class="print-preview-popover"/);
   assert.match(html, /class="adjustment-panel" id="adjustmentPanel" hidden[\s\S]*id="zoomRange"[\s\S]*id="rotateRange"/);
   assert.match(css, /\.preview-upload-actions/);
@@ -146,6 +151,9 @@ test('working panel keeps upload, AI status, and print preview close together', 
   assert.match(css, /\.agent-prep/);
   assert.match(css, /aspect-ratio:\s*1 \/ 1/);
   assert.match(css, /max-height:\s*calc\(100vh - 96px\)/);
+  assert.match(js, /const documentSpecs/);
+  assert.match(js, /51 x 51 mm/);
+  assert.match(js, /applySpecLabels/);
 });
 
 test('zoom and rotation update crop fit warnings', () => {
@@ -251,11 +259,13 @@ test('site includes expandable passport photo requirement cards', () => {
 test('server exposes private AI photo agent endpoints', () => {
   const server = read('server.js');
   const usPassportSpec = read('docs/photo-specs/us-passport.md');
+  const indiaPassportSpec = read('docs/photo-specs/in-passport.md');
   const photoAgent = read('docs/agents/photo-compliance-agent.md');
   const printAgent = read('docs/agents/print-provider-agent.md');
 
   assert.match(server, /OPENAI_API_KEY/);
   assert.match(server, /\/api\/photo\/analyze/);
+  assert.match(server, /\/api\/photo\/spec/);
   assert.match(server, /\/api\/photo\/suggest/);
   assert.match(server, /\/api\/photo\/background/);
   assert.match(server, /responses/);
@@ -266,6 +276,8 @@ test('server exposes private AI photo agent endpoints', () => {
   assert.match(usPassportSpec, /Head must be centered/);
   assert.match(usPassportSpec, /50-69%/);
   assert.match(usPassportSpec, /56-69%/);
+  assert.match(indiaPassportSpec, /51 x 51 mm/);
+  assert.match(indiaPassportSpec, /plain white/);
   assert.match(photoAgent, /Keep the original photo available/);
   assert.match(printAgent, /Walmart/);
   assert.match(printAgent, /Walgreens/);
