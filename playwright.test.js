@@ -124,6 +124,31 @@ const run = async () => {
     assert.match((await indiaSpecResponse.json()).markdown, /51 x 51 mm/);
     await page.selectOption('#country', 'us');
 
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      const stream = canvas.captureStream();
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: {
+          getUserMedia: async () => stream
+        }
+      });
+      HTMLMediaElement.prototype.play = async function play() {};
+    });
+    await page.click('#cameraButton');
+    await page.waitForFunction(() => !document.querySelector('#cameraModal').hidden);
+    await page.waitForFunction(() => document.querySelector('#cameraStatus').textContent.includes('Center your face'));
+    const cameraState = await page.evaluate(() => ({
+      modalHidden: document.querySelector('#cameraModal').hidden,
+      captureDisabled: document.querySelector('#captureCameraButton').disabled,
+      videoHasStream: Boolean(document.querySelector('#cameraVideo').srcObject)
+    }));
+    assert.equal(cameraState.modalHidden, false);
+    assert.equal(cameraState.captureDisabled, false);
+    assert.equal(cameraState.videoHasStream, true);
+    await page.click('#cancelCameraButton');
+    await page.waitForFunction(() => document.querySelector('#cameraModal').hidden);
+
     const requirementsGuide = await page.evaluate(() => ({
       title: document.querySelector('#passport-checklist-title').textContent.trim(),
       cardCount: document.querySelectorAll('.requirement-card').length,

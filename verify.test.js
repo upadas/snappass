@@ -87,10 +87,17 @@ test('stylesheet defines the approved visual system and responsive layout', () =
 
 test('script wires upload preview and export state behavior', () => {
   const js = read('app.js');
+  const html = read('index.html');
   assert.match(js, /photoInput\.addEventListener\('change'/);
   assert.match(js, /URL\.createObjectURL/);
   assert.match(js, /exportPanel\.hidden\s*=\s*false/);
   assert.match(js, /resetButton\.addEventListener\('click'/);
+  assert.match(html, /id="cameraModal"/);
+  assert.match(html, /id="cameraVideo"/);
+  assert.match(html, /id="captureCameraButton"/);
+  assert.match(js, /mediaDevices\?\.getUserMedia/);
+  assert.match(js, /captureCameraButton\.addEventListener\('click'/);
+  assert.doesNotMatch(js, /cameraButton\.addEventListener\('click', \(\) => \{\s*photoInput\.click\(\);/);
 });
 
 test('export buttons download digital and printable photo outputs', () => {

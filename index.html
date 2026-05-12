@@ -212,6 +212,22 @@
               </div>
             </div>
 
+            <div class="qr-modal camera-modal" id="cameraModal" hidden role="dialog" aria-modal="true" aria-labelledby="cameraTitle">
+              <div class="qr-card camera-card">
+                <button class="qr-close" id="cameraClose" type="button" aria-label="Close camera">×</button>
+                <div>
+                  <p class="section-kicker">Camera capture</p>
+                  <h3 id="cameraTitle">Take a passport photo</h3>
+                  <p id="cameraStatus">Allow camera access, face forward, and use even light.</p>
+                </div>
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <div class="camera-actions">
+                  <button class="button button-secondary" type="button" id="cancelCameraButton">Cancel</button>
+                  <button class="button button-primary" type="button" id="captureCameraButton" disabled>Capture photo</button>
+                </div>
+              </div>
+            </div>
+
             <div class="export-panel" id="exportPanel" hidden>
               <h3>Export options</h3>
               <div class="export-grid">

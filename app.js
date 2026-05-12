@@ -41,6 +41,12 @@ const phoneUploadClose = document.querySelector('#phoneUploadClose');
 const phoneUploadQr = document.querySelector('#phoneUploadQr');
 const phoneUploadLink = document.querySelector('#phoneUploadLink');
 const phoneUploadStatus = document.querySelector('#phoneUploadStatus');
+const cameraModal = document.querySelector('#cameraModal');
+const cameraClose = document.querySelector('#cameraClose');
+const cameraVideo = document.querySelector('#cameraVideo');
+const cameraStatus = document.querySelector('#cameraStatus');
+const cancelCameraButton = document.querySelector('#cancelCameraButton');
+const captureCameraButton = document.querySelector('#captureCameraButton');
 
 const DEFAULT_OUTPUT_SIZE = 600;
 const PRINT_SHEET_WIDTH = 1800;
@@ -84,6 +90,7 @@ let previewPanY = 0;
 let dragState = null;
 let phoneUploadSession = '';
 let phoneUploadPollTimer = null;
+let cameraStream = null;
 let localImageFindings = {
   isHuman: true,
   warning: '',
@@ -1046,6 +1053,7 @@ const resetState = () => {
   previewPanY = 0;
   dragState = null;
   stopPhoneUploadPolling();
+  closeCameraModal();
   localImageFindings = {
     isHuman: true,
     warning: '',
@@ -1092,6 +1100,72 @@ const stopPhoneUploadPolling = () => {
 const closePhoneUploadModal = () => {
   phoneUploadModal.hidden = true;
   stopPhoneUploadPolling();
+};
+
+const stopCameraStream = () => {
+  if (!cameraStream) {
+    return;
+  }
+  cameraStream.getTracks().forEach((track) => track.stop());
+  cameraStream = null;
+  cameraVideo.srcObject = null;
+};
+
+const closeCameraModal = () => {
+  cameraModal.hidden = true;
+  captureCameraButton.disabled = true;
+  stopCameraStream();
+};
+
+const openCameraModal = async () => {
+  cameraModal.hidden = false;
+  captureCameraButton.disabled = true;
+  cameraStatus.textContent = 'Opening camera...';
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraStatus.textContent = 'Camera capture needs HTTPS, localhost, and browser camera permission. Use the upload button if this file preview cannot access the camera.';
+    return;
+  }
+
+  try {
+    stopCameraStream();
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 1280 }
+      },
+      audio: false
+    });
+    cameraVideo.srcObject = cameraStream;
+    await cameraVideo.play();
+    captureCameraButton.disabled = false;
+    cameraStatus.textContent = 'Center your face, keep the background plain, then capture.';
+  } catch {
+    cameraStatus.textContent = 'Camera permission was blocked or unavailable. Run SnapPass from HTTPS or localhost and allow camera access.';
+  }
+};
+
+const captureCameraPhoto = async () => {
+  if (!cameraStream || !cameraVideo.videoWidth || !cameraVideo.videoHeight) {
+    cameraStatus.textContent = 'Camera is not ready yet. Wait for the preview to appear.';
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cameraVideo.videoWidth;
+  canvas.height = cameraVideo.videoHeight;
+  canvas.getContext('2d').drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) {
+    cameraStatus.textContent = 'Could not capture this frame. Try again.';
+    return;
+  }
+
+  const file = new File([blob], 'camera-capture.png', { type: 'image/png' });
+  closeCameraModal();
+  await showLoadedState(file);
 };
 
 const pollPhoneUpload = async () => {
@@ -1409,7 +1483,7 @@ downloadDigitalButton.addEventListener('click', downloadDigitalPhoto);
 downloadPrintButton.addEventListener('click', downloadPrintableSheet);
 
 cameraButton.addEventListener('click', () => {
-  photoInput.click();
+  openCameraModal();
 });
 
 phoneUploadButton.addEventListener('click', openPhoneUploadModal);
@@ -1417,6 +1491,15 @@ phoneUploadClose.addEventListener('click', closePhoneUploadModal);
 phoneUploadModal.addEventListener('click', (event) => {
   if (event.target === phoneUploadModal) {
     closePhoneUploadModal();
+  }
+});
+
+cameraClose.addEventListener('click', closeCameraModal);
+cancelCameraButton.addEventListener('click', closeCameraModal);
+captureCameraButton.addEventListener('click', captureCameraPhoto);
+cameraModal.addEventListener('click', (event) => {
+  if (event.target === cameraModal) {
+    closeCameraModal();
   }
 });
 
