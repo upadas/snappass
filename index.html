@@ -363,8 +363,31 @@
           <p class="section-kicker">Pricing</p>
           <h2 id="pricing-title">Free passport photos, supported by donations and minimal ads.</h2>
         </div>
-        <div class="summary-card">
-          <p>Some passport photo sites turn the final download into a paid checkout. SnapPass keeps digital downloads and printable 4x6 sheets free, with optional donations to help cover hosting, image processing, OpenAI API calls, and the AI agents that review and prepare each photo.</p>
+        <div class="pricing-stack">
+          <div class="summary-card">
+            <p>Some passport photo sites turn the final download into a paid checkout. SnapPass keeps digital downloads and printable 4x6 sheets free, with optional donations to help cover hosting, image processing, OpenAI API calls, and the AI agents that review and prepare each photo.</p>
+            <ul class="monetization-list" aria-label="How SnapPass stays free">
+              <li>One quiet Google AdSense placement</li>
+              <li>Optional donations after download</li>
+              <li>Future print pickup referral revenue</li>
+              <li>Optional bring-your-own AI key for heavier edits</li>
+            </ul>
+          </div>
+          <aside class="donation-panel" aria-labelledby="donation-title">
+            <div>
+              <p class="section-kicker">Optional support</p>
+              <h3 id="donation-title">Keep SnapPass free</h3>
+              <p>Donations help cover hosting, AI cleanup, QR uploads, and print-provider integrations.</p>
+            </div>
+            <div class="donation-amounts" aria-label="Donation amount choices">
+              <button type="button">$2</button>
+              <button type="button">$5</button>
+              <button type="button">$10</button>
+              <button type="button">Custom</button>
+            </div>
+            <button class="donate-button" type="button" id="donateButton" data-payment-provider="stripe-or-paypal">Donate to keep SnapPass free</button>
+            <p class="payment-methods">Apple Pay, Google Pay, cards, PayPal, Venmo, Cash App, and regional wallets can be enabled through Stripe or PayPal.</p>
+          </aside>
         </div>
       </section>
 

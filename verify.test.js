@@ -63,6 +63,20 @@ test('site positioning is free with minimal ad support', () => {
   assert.match(css, /\.ad-slot/);
 });
 
+test('pricing section includes optional donation monetization', () => {
+  const html = read('index.html');
+  const css = read('styles.css');
+
+  assert.match(html, /Keep SnapPass free/);
+  assert.match(html, /Donate to keep SnapPass free/);
+  assert.match(html, /Apple Pay, Google Pay, cards, PayPal, Venmo, Cash App/);
+  assert.match(html, /Future print pickup referral revenue/);
+  assert.match(html, /data-payment-provider="stripe-or-paypal"/);
+  assert.match(css, /\.donation-panel/);
+  assert.match(css, /\.donation-amounts/);
+  assert.match(css, /\.donate-button/);
+});
+
 test('stylesheet defines the approved visual system and responsive layout', () => {
   const css = read('styles.css');
   assert.match(css, /--color-primary:\s*#167f63/);
