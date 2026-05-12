@@ -295,6 +295,7 @@ test('server exposes private AI photo agent endpoints', () => {
 
 test('browser keeps the OpenAI key on the server and requests agent help in the background', () => {
   const js = read('app.js');
+  const css = read('styles.css');
   const html = read('index.html');
 
   assert.doesNotMatch(js, /OPENAI_API_KEY/);
@@ -303,6 +304,9 @@ test('browser keeps the OpenAI key on the server and requests agent help in the 
   assert.match(js, /fetch\('\/api\/photo\/background'/);
   assert.match(js, /applySuggestionButton/);
   assert.match(js, /backgroundResultDataUrl/);
+  assert.match(js, /preview\.removeAttribute\('src'\)/);
+  assert.match(css, /\.variant-card img:not\(\[src\]\)/);
+  assert.match(css, /\.variant-card:disabled::before/);
   assert.match(html, /id="applySuggestionButton"/);
 });
 

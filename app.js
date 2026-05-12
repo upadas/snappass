@@ -387,7 +387,11 @@ const setVariant = async (name, dataUrl) => {
   }[name];
   const card = variantCards.find((item) => item.dataset.variant === name);
   if (preview) {
-    preview.src = dataUrl || '';
+    if (dataUrl) {
+      preview.src = dataUrl;
+    } else {
+      preview.removeAttribute('src');
+    }
     preview.alt = dataUrl ? `${name} passport photo preview` : '';
   }
   if (card) {

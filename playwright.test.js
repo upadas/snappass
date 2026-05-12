@@ -212,6 +212,11 @@ const run = async () => {
       variantHidden: document.querySelector('#variantPanel').hidden,
       variantCount: document.querySelectorAll('.variant-card').length,
       selectedVariant: document.querySelector('.variant-card.is-selected')?.dataset.variant,
+      aiVariantDisabled: document.querySelector('[data-variant="ai"]').disabled,
+      whiteVariantDisabled: document.querySelector('[data-variant="white"]').disabled,
+      aiVariantHasSrc: document.querySelector('#variantAiPreview').hasAttribute('src'),
+      whiteVariantHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src'),
+      lightingVariantHasSrc: document.querySelector('#variantLightingPreview').hasAttribute('src'),
       advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
@@ -242,6 +247,13 @@ const run = async () => {
     assert.equal(uploaded.variantHidden, false);
     assert.equal(uploaded.variantCount, 4);
     assert.equal(uploaded.selectedVariant, 'original');
+    if (uploaded.aiVariantDisabled) {
+      assert.equal(uploaded.aiVariantHasSrc, false);
+    }
+    if (uploaded.whiteVariantDisabled) {
+      assert.equal(uploaded.whiteVariantHasSrc, false);
+    }
+    assert.equal(uploaded.lightingVariantHasSrc, true);
     assert.match(uploaded.advisorSummary, /AI|Original|photo/i);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);

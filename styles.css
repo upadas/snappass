@@ -838,6 +838,23 @@ h1 {
   background: #f4fbf7;
 }
 
+.variant-card img:not([src]) {
+  display: none;
+}
+
+.variant-card:disabled::before {
+  content: "Not ready";
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: #f4fbf7;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
 .variant-card span {
   font-size: 0.72rem;
   font-weight: 850;
