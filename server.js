@@ -153,6 +153,23 @@ const handleSpec = (response, searchParams) => {
   });
 };
 
+const handleAgentStatus = (response) => {
+  const specFiles = fs.readdirSync(specRoot).filter((file) => file.endsWith('.md'));
+  sendJson(response, 200, {
+    status: openAiApiKey ? 'ready' : 'fallback',
+    aiConfigured: Boolean(openAiApiKey),
+    analysisModel: openAiModel,
+    imageModel: openAiImageModel,
+    specCount: specFiles.length,
+    endpoints: [
+      '/api/photo/analyze',
+      '/api/photo/suggest',
+      '/api/photo/background',
+      '/api/photo/spec'
+    ]
+  });
+};
+
 const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
   const specMarkdown = readSpecMarkdown(country, documentType);
   const response = await fetch('https://api.openai.com/v1/responses', {
@@ -283,7 +300,7 @@ const handleBackground = async (request, response) => {
       sendJson(response, 200, {
         mode: 'server fallback',
         imageDataUrl: null,
-        message: 'Set the server API key to run real AI background replacement. SnapPass keeps the photo intact instead of applying a destructive mask.'
+        message: 'AI background editing is not configured on this server yet. SnapPass kept the selected photo unchanged.'
       });
       return;
     }
@@ -298,7 +315,7 @@ const handleBackground = async (request, response) => {
     sendJson(response, 200, {
       mode: 'server fallback',
       imageDataUrl: null,
-      message: `AI cleanup failed, so SnapPass kept the photo intact instead of applying a destructive mask: ${error.message}`
+      message: 'AI cleanup is temporarily unavailable, so SnapPass kept the selected photo unchanged.'
     });
   }
 };
@@ -321,7 +338,7 @@ const handleSuggest = async (request, response) => {
           whiteBackgroundDataUrl: null,
           lightingDataUrl: null
         },
-        message: 'AI suggested photo needs OPENAI_API_KEY. Original photo remains selected; local lighting preview is available.'
+        message: 'AI suggestions are not configured on this server yet. Original photo remains selected and a lighting preview is available.'
       });
       return;
     }
@@ -430,6 +447,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'GET' && parsedUrl.pathname === '/api/photo/spec') {
     handleSpec(response, parsedUrl.searchParams);
+    return;
+  }
+
+  if (request.method === 'GET' && parsedUrl.pathname === '/api/photo/agent-status') {
+    handleAgentStatus(response);
     return;
   }
 

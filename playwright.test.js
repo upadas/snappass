@@ -122,6 +122,11 @@ const run = async () => {
     assert.equal(indiaSpec.printLabel, '4 photos, 51 x 51 mm each');
     const indiaSpecResponse = await fetch(`${appUrl}api/photo/spec?country=in&documentType=passport`);
     assert.match((await indiaSpecResponse.json()).markdown, /51 x 51 mm/);
+    const agentStatusResponse = await fetch(`${appUrl}api/photo/agent-status`);
+    const agentStatus = await agentStatusResponse.json();
+    assert.equal(agentStatus.status, 'fallback');
+    assert.equal(agentStatus.aiConfigured, false);
+    assert.ok(agentStatus.specCount >= 4);
     await page.selectOption('#country', 'us');
 
     await page.evaluate(() => {
@@ -295,7 +300,7 @@ const run = async () => {
     assert.match(afterDrag.status, /Preview ready|Adjust crop|Fix crop/);
 
     await page.selectOption('#backgroundMode', 'replace-white');
-    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('OPENAI_API_KEY') || document.querySelector('#backgroundNote').textContent.includes('server API key'));
+    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('not configured') || document.querySelector('#backgroundNote').textContent.includes('unchanged'));
     const backgroundState = await page.evaluate(() => ({
       mode: document.querySelector('#backgroundMode').value,
       whitePreview: document.querySelector('#photoFrame').classList.contains('background-white'),
@@ -307,7 +312,8 @@ const run = async () => {
     assert.equal(backgroundState.whitePreview, true);
     assert.equal(backgroundState.destructiveMask, false);
     assert.match(backgroundState.backgroundText, /AI background pending|Background needs review|Background: plain white/);
-    assert.match(backgroundState.backgroundNote, /OPENAI_API_KEY|server API key|unchanged/);
+    assert.match(backgroundState.backgroundNote, /not configured|unchanged/);
+    assert.doesNotMatch(backgroundState.backgroundNote, /OPENAI_API_KEY/);
 
     await page.selectOption('#lightingMode', 'auto-enhance');
     await page.waitForFunction(() => document.querySelector('[data-check="lighting"]').textContent.includes('Lighting enhanced'));

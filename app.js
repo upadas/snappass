@@ -698,7 +698,7 @@ const requestPhotoSuggestion = async (file) => {
     await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || suggestion.variants?.whiteBackgroundDataUrl || '');
     await setVariant('white', suggestion.variants?.whiteBackgroundDataUrl || '');
     await setVariant('lighting', suggestion.variants?.lightingDataUrl || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
-    if (analysis.isHuman !== false && suggestion.message) {
+    if (analysis.isHuman !== false && suggestion.message && suggestion.mode !== 'server fallback') {
       advisorSummary.textContent = suggestion.message;
     }
   } catch {
@@ -855,7 +855,7 @@ const requestBackgroundEdit = async () => {
     }
 
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = result.message || 'AI cleanup needs a server API key. Keeping the selected photo unchanged.';
+    backgroundNote.textContent = result.message || 'AI cleanup is not configured on this server yet. Keeping the selected photo unchanged.';
   } catch {
     if (requestId !== backgroundRequestId || !currentImageFile) {
       return;
