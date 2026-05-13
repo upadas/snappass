@@ -52,6 +52,10 @@ Then open `http://localhost:3000`.
 npm test
 ```
 
+## Release Notes
+
+Add an entry to `RELEASE_NOTES.md` for every pushed commit. Keep each entry short: date, commit hash, user-facing change, and verification command.
+
 ## Deploy
 
 ## Recommended deployment
