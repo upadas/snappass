@@ -306,6 +306,23 @@ const run = async () => {
       buffer: portraitSvg
     });
     await page.waitForFunction(() => document.querySelector('#photoPreview').alt.includes('replacement.svg'));
+    const replacementClearedVariants = await page.evaluate(() => ({
+      selectedVariant: document.querySelector('.variant-card.is-selected')?.dataset.variant,
+      aiDisabled: document.querySelector('[data-variant="ai"]').disabled,
+      whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
+      lightingDisabledAtUploadStart: document.querySelector('[data-variant="lighting"]').disabled,
+      aiHasSrc: document.querySelector('#variantAiPreview').hasAttribute('src'),
+      whiteHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src'),
+      lightingHasSrcAtUploadStart: document.querySelector('#variantLightingPreview').hasAttribute('src')
+    }));
+    assert.equal(replacementClearedVariants.selectedVariant, 'original');
+    assert.equal(replacementClearedVariants.aiDisabled, true);
+    assert.equal(replacementClearedVariants.whiteDisabled, true);
+    assert.equal(replacementClearedVariants.lightingDisabledAtUploadStart, true);
+    assert.equal(replacementClearedVariants.aiHasSrc, false);
+    assert.equal(replacementClearedVariants.whiteHasSrc, false);
+    assert.equal(replacementClearedVariants.lightingHasSrcAtUploadStart, false);
+    await page.waitForFunction(() => !document.querySelector('[data-variant="lighting"]').disabled);
     const beforeDragTransform = await page.locator('#photoPreview').evaluate((element) => getComputedStyle(element).transform);
     const frameBox = await page.locator('#photoFrame').boundingBox();
     await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height / 2);

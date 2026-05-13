@@ -408,6 +408,35 @@ const setVariant = async (name, dataUrl) => {
   }
 };
 
+const clearGeneratedVariants = () => {
+  ['ai', 'white', 'lighting'].forEach((name) => {
+    photoVariants[name] = '';
+    const preview = {
+      ai: variantAiPreview,
+      white: variantWhitePreview,
+      lighting: variantLightingPreview
+    }[name];
+    const card = variantCards.find((item) => item.dataset.variant === name);
+    if (preview) {
+      preview.removeAttribute('src');
+      preview.alt = '';
+    }
+    if (card) {
+      card.disabled = true;
+      card.classList.remove('is-selected');
+    }
+  });
+};
+
+const resetVariantPreviewsForUpload = () => {
+  clearGeneratedVariants();
+  variantCards.forEach((card) => {
+    card.classList.toggle('is-selected', card.dataset.variant === 'original');
+  });
+  variantOriginalPreview.removeAttribute('src');
+  variantOriginalPreview.alt = '';
+};
+
 const selectVariant = async (name) => {
   const dataUrl = photoVariants[name];
   if (!dataUrl) {
@@ -1066,6 +1095,7 @@ const showLoadedState = async (file) => {
     white: '',
     lighting: ''
   };
+  resetVariantPreviewsForUpload();
   selectRandomQuote();
   photoPreview.src = URL.createObjectURL(file);
   photoPreview.alt = `Preview of ${file.name}`;
