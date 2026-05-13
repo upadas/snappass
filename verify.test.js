@@ -234,16 +234,32 @@ test('prototype includes AI assessment checks for human subject, lighting, and h
 test('site documents print partner and deployment strategy', () => {
   const html = read('index.html');
   const readme = read('README.md');
+  const envExample = read('.env.example');
+  const js = read('app.js');
+  const server = read('server.js');
+  const printAgent = read('docs/agents/print-provider-agent.md');
 
   assert.match(html, /Print pickup roadmap/);
   assert.match(html, /Walgreens/);
   assert.match(html, /generic print handoff API/);
   assert.match(html, /PNI Digital Media|Fujifilm/);
+  assert.match(html, /id="printOrderForm"/);
+  assert.match(html, /Request Walgreens pickup/);
   assert.match(readme, /Recommended deployment/);
+  assert.match(readme, /\/api\/print\/orders/);
   assert.match(readme, /Railway/);
   assert.match(readme, /Render/);
   assert.match(readme, /Vercel/);
   assert.match(readme, /AWS Amplify/);
+  assert.match(envExample, /WALGREENS_API_KEY=/);
+  assert.match(envExample, /WALGREENS_ORDER_ENDPOINT=/);
+  assert.match(js, /submitPrintOrder/);
+  assert.match(js, /fetch\('\/api\/print\/orders'/);
+  assert.match(server, /\/api\/print\/providers/);
+  assert.match(server, /\/api\/print\/orders/);
+  assert.match(server, /submitWalgreensOrder/);
+  assert.match(server, /pending_provider_credentials/);
+  assert.match(printAgent, /Walgreens first/);
 });
 
 test('site includes expandable passport photo requirement cards', () => {

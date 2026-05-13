@@ -8,8 +8,13 @@ const root = __dirname;
 const openAiApiKey = process.env.OPENAI_API_KEY || '';
 const openAiModel = process.env.OPENAI_MODEL || 'gpt-5.5';
 const openAiImageModel = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+const walgreensApiKey = process.env.WALGREENS_API_KEY || '';
+const walgreensOrderEndpoint = process.env.WALGREENS_ORDER_ENDPOINT || '';
+const walgreensAffiliateId = process.env.WALGREENS_AFFILIATE_ID || '';
+const walgreensProductId = process.env.WALGREENS_4X6_PRODUCT_ID || '4x6-print';
 const maxJsonBytes = 12 * 1024 * 1024;
 const mobileUploads = new Map();
+const printOrders = new Map();
 const specRoot = path.join(root, 'docs', 'photo-specs');
 
 const mimeTypes = {
@@ -188,6 +193,177 @@ const handleAgentStatus = (response) => {
       '/api/photo/spec'
     ]
   });
+};
+
+const makeOrderId = () => `sp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const getPublicOrigin = (request) => {
+  const forwardedProto = request.headers['x-forwarded-proto'];
+  const proto = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto || 'https';
+  const hostHeader = request.headers['x-forwarded-host'] || request.headers.host || 'localhost';
+  const hostName = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  return `${proto}://${hostName}`;
+};
+
+const providerList = () => ([
+  {
+    id: 'walgreens',
+    name: 'Walgreens',
+    status: walgreensApiKey && walgreensOrderEndpoint ? 'configured' : 'credentials-needed',
+    product: '4x6 photo print',
+    pickup: 'Same-day pickup when the store supports the selected product.',
+    notes: [
+      'Requires approved Walgreens Photo Prints API access.',
+      'SnapPass sends the final printable 4x6 sheet from the server.',
+      'A public or signed image URL is required before real provider submission.'
+    ],
+    requiredEnv: [
+      'WALGREENS_API_KEY',
+      'WALGREENS_ORDER_ENDPOINT',
+      'WALGREENS_AFFILIATE_ID',
+      'WALGREENS_4X6_PRODUCT_ID'
+    ]
+  }
+]);
+
+const handlePrintProviders = (request, response) => {
+  const parsedUrl = new URL(request.url || '/', getPublicOrigin(request));
+  const zip = parsedUrl.searchParams.get('zip') || '';
+  sendJson(response, 200, {
+    providers: providerList(),
+    zip,
+    message: zip
+      ? 'Walgreens pickup is first in the provider queue. Store search activates after provider credentials are configured.'
+      : 'Enter a ZIP code to prepare a Walgreens pickup handoff.'
+  });
+};
+
+const buildWalgreensOrderPayload = ({ orderId, body }) => ({
+  partnerOrderId: orderId,
+  affiliateId: walgreensAffiliateId || undefined,
+  provider: 'walgreens',
+  customer: body.customer,
+  store: {
+    id: body.storeId || body.store?.id || '',
+    zip: body.zip || body.store?.zip || ''
+  },
+  products: [
+    {
+      productId: body.product?.id || walgreensProductId,
+      type: body.product?.type || '4x6',
+      quantity: Number(body.product?.quantity || 1),
+      imageUrl: body.image?.url
+    }
+  ],
+  metadata: {
+    source: 'snappass',
+    imageKind: body.image?.kind || 'passport_sheet_4x6'
+  }
+});
+
+const submitWalgreensOrder = async ({ orderId, body }) => {
+  const providerPayload = buildWalgreensOrderPayload({ orderId, body });
+  const response = await fetch(walgreensOrderEndpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${walgreensApiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(providerPayload)
+  });
+
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!response.ok) {
+    throw new Error(`Walgreens order failed: ${response.status}`);
+  }
+
+  return {
+    providerOrderId: data?.orderId || data?.id || data?.providerOrderId || orderId,
+    providerResponse: data
+  };
+};
+
+const handlePrintOrder = async (request, response) => {
+  try {
+    const body = await readJsonBody(request);
+    const provider = body.provider || 'walgreens';
+    if (provider !== 'walgreens') {
+      sendJson(response, 400, { error: 'Only Walgreens is supported in the first provider integration.' });
+      return;
+    }
+
+    if (!body.customer?.email && !body.customer?.phone) {
+      sendJson(response, 400, { error: 'customer.email or customer.phone is required for print pickup.' });
+      return;
+    }
+
+    if (!body.zip && !body.storeId && !body.store?.id) {
+      sendJson(response, 400, { error: 'zip or storeId is required for Walgreens pickup.' });
+      return;
+    }
+
+    const orderId = makeOrderId();
+    const createdAt = new Date().toISOString();
+    const order = {
+      orderId,
+      provider,
+      status: 'pending_provider_credentials',
+      createdAt,
+      zip: body.zip || body.store?.zip || '',
+      storeId: body.storeId || body.store?.id || '',
+      customer: {
+        email: body.customer?.email || '',
+        phone: body.customer?.phone || ''
+      },
+      product: {
+        type: body.product?.type || '4x6',
+        quantity: Number(body.product?.quantity || 1)
+      }
+    };
+
+    if (!walgreensApiKey || !walgreensOrderEndpoint) {
+      printOrders.set(orderId, order);
+      sendJson(response, 202, {
+        ...order,
+        message: 'Walgreens order intent saved. Add Walgreens API credentials and endpoint to submit real pickup orders.',
+        nextStep: 'Configure WALGREENS_API_KEY and WALGREENS_ORDER_ENDPOINT on the server.'
+      });
+      return;
+    }
+
+    if (!body.image?.url) {
+      order.status = 'pending_public_image_url';
+      printOrders.set(orderId, order);
+      sendJson(response, 202, {
+        ...order,
+        message: 'Walgreens credentials are configured, but real submission needs a public or signed 4x6 image URL.',
+        nextStep: 'Upload the generated 4x6 sheet to durable storage and send image.url for provider pickup.'
+      });
+      return;
+    }
+
+    const providerResult = await submitWalgreensOrder({ orderId, body });
+    order.status = 'submitted';
+    order.providerOrderId = providerResult.providerOrderId;
+    printOrders.set(orderId, order);
+    sendJson(response, 200, {
+      ...order,
+      message: 'Walgreens print order submitted.',
+      providerResponse: providerResult.providerResponse
+    });
+  } catch (error) {
+    sendJson(response, 500, {
+      error: error.message,
+      message: 'Walgreens print handoff failed before completion.'
+    });
+  }
 };
 
 const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
@@ -523,6 +699,16 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'POST' && parsedUrl.pathname === '/api/photo/background') {
     await handleBackground(request, response);
+    return;
+  }
+
+  if (request.method === 'GET' && parsedUrl.pathname === '/api/print/providers') {
+    handlePrintProviders(request, response);
+    return;
+  }
+
+  if (request.method === 'POST' && parsedUrl.pathname === '/api/print/orders') {
+    await handlePrintOrder(request, response);
     return;
   }
 

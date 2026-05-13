@@ -20,6 +20,24 @@ Agent contracts:
 - `docs/agents/photo-compliance-agent.md`: upload-time analysis and cleanup flow.
 - `docs/agents/print-provider-agent.md`: future Walmart, Walgreens, CVS, and pharmacy print ordering flow.
 
+## Walgreens Print Handoff
+
+SnapPass includes the first server-side retail print handoff for Walgreens:
+
+- `GET /api/print/providers?zip=75024`
+- `POST /api/print/orders`
+
+The browser posts a Walgreens order intent with ZIP/contact details and the generated 4x6 sheet. Real Walgreens submission stays server-side and requires approved provider credentials plus an image URL that Walgreens can fetch.
+
+```bash
+WALGREENS_API_KEY=your_walgreens_key
+WALGREENS_ORDER_ENDPOINT=https://approved-walgreens-endpoint
+WALGREENS_AFFILIATE_ID=your_affiliate_or_partner_id
+WALGREENS_4X6_PRODUCT_ID=4x6-print
+```
+
+Until those are configured, `/api/print/orders` saves the intent and returns a clear `pending_provider_credentials` response. CVS can later plug into the same provider interface.
+
 ## Run Locally
 
 ```bash

@@ -946,6 +946,62 @@ h1 {
   font-size: 1rem;
 }
 
+.print-order-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #f8fffb;
+}
+
+.print-order-panel h4 {
+  margin: 2px 0 4px;
+  font-size: 1rem;
+}
+
+.print-order-panel p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.print-order-grid {
+  display: grid;
+  grid-template-columns: 0.72fr 1.28fr;
+  gap: 8px;
+}
+
+.print-order-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.print-order-grid span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.print-order-grid input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #c8ddd3;
+  border-radius: var(--radius);
+  padding: 0 10px;
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 760;
+}
+
+.print-order-status {
+  color: var(--color-primary-dark) !important;
+  font-weight: 760;
+}
+
 .print-preview-header {
   display: flex;
   align-items: center;

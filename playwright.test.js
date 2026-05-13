@@ -379,6 +379,22 @@ const run = async () => {
     const printBytes = require('node:fs').readFileSync(printDownload.path);
     assert.equal(printBytes.readUInt32BE(16), 1800);
     assert.equal(printBytes.readUInt32BE(20), 1200);
+
+    await page.fill('#printZip', '75024');
+    await page.fill('#printContact', 'user@example.com');
+    await page.click('#printOrderButton');
+    await page.waitForFunction(() => document.querySelector('#printOrderStatus').textContent.includes('Walgreens order intent saved'));
+    const printOrderState = await page.evaluate(() => ({
+      status: document.querySelector('#printOrderStatus').textContent.trim(),
+      disabled: document.querySelector('#printOrderButton').disabled
+    }));
+    assert.match(printOrderState.status, /Walgreens order intent saved/);
+    assert.equal(printOrderState.disabled, false);
+
+    const printProvidersResponse = await fetch(`${appUrl}api/print/providers?zip=75024`);
+    const printProviders = await printProvidersResponse.json();
+    assert.equal(printProviders.providers[0].id, 'walgreens');
+    assert.equal(printProviders.providers[0].status, 'credentials-needed');
     await page.close();
 
     const warningPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });

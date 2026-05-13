@@ -234,6 +234,25 @@
                 <button type="button" id="downloadDigitalButton">Download digital photo</button>
                 <button type="button" id="downloadPrintButton">Create printable 4x6 sheet</button>
               </div>
+              <form class="print-order-panel" id="printOrderForm" aria-label="Walgreens print pickup request">
+                <div>
+                  <p class="section-kicker">Retail pickup</p>
+                  <h4>Send to Walgreens</h4>
+                  <p>Submit a server-side print handoff for the generated 4x6 sheet. Real pickup activates after Walgreens credentials are approved.</p>
+                </div>
+                <div class="print-order-grid">
+                  <label>
+                    <span>ZIP code</span>
+                    <input id="printZip" name="zip" inputmode="numeric" autocomplete="postal-code" placeholder="75024">
+                  </label>
+                  <label>
+                    <span>Email or phone</span>
+                    <input id="printContact" name="contact" autocomplete="email" placeholder="you@example.com">
+                  </label>
+                </div>
+                <button class="button button-secondary" type="submit" id="printOrderButton">Request Walgreens pickup</button>
+                <p class="print-order-status" id="printOrderStatus">Walgreens is first. CVS support can plug into the same handoff later.</p>
+              </form>
             </div>
           </aside>
         </div>

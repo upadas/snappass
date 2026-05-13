@@ -21,6 +21,11 @@ const aiAssessment = document.querySelector('#aiAssessment');
 const advisorSummary = document.querySelector('#advisorSummary');
 const downloadDigitalButton = document.querySelector('#downloadDigitalButton');
 const downloadPrintButton = document.querySelector('#downloadPrintButton');
+const printOrderForm = document.querySelector('#printOrderForm');
+const printZip = document.querySelector('#printZip');
+const printContact = document.querySelector('#printContact');
+const printOrderButton = document.querySelector('#printOrderButton');
+const printOrderStatus = document.querySelector('#printOrderStatus');
 const backgroundMode = document.querySelector('#backgroundMode');
 const backgroundNote = document.querySelector('#backgroundNote');
 const lightingMode = document.querySelector('#lightingMode');
@@ -1157,6 +1162,8 @@ const resetState = () => {
   rotateRange.value = '0';
   backgroundMode.value = 'keep-original';
   lightingMode.value = 'keep-original';
+  printOrderStatus.textContent = 'Walgreens is first. CVS support can plug into the same handoff later.';
+  printOrderButton.disabled = false;
   applyBackgroundMode();
   statusPill.textContent = 'Ready';
   statusPill.classList.remove('is-warning', 'is-danger');
@@ -1443,6 +1450,66 @@ const downloadPrintableSheet = () => {
   downloadCanvas(canvas, 'snappass-printable-4x6.png');
 };
 
+const buildPrintableSheetDataUrl = () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = PRINT_SHEET_WIDTH;
+  canvas.height = PRINT_SHEET_HEIGHT;
+  drawPrintSheet(canvas);
+  return canvas.toDataURL('image/png');
+};
+
+const parsePrintContact = (value = '') => {
+  const contact = value.trim();
+  if (contact.includes('@')) {
+    return { email: contact, phone: '' };
+  }
+  return { email: '', phone: contact };
+};
+
+const submitPrintOrder = async (event) => {
+  event.preventDefault();
+  if (!currentImageFile) {
+    printOrderStatus.textContent = 'Upload and review a photo before requesting pickup.';
+    return;
+  }
+
+  const zip = printZip.value.trim();
+  const contact = parsePrintContact(printContact.value);
+  if (!zip || (!contact.email && !contact.phone)) {
+    printOrderStatus.textContent = 'Enter a ZIP code and email or phone for pickup.';
+    return;
+  }
+
+  printOrderButton.disabled = true;
+  printOrderStatus.textContent = 'Preparing Walgreens handoff...';
+
+  try {
+    const response = await fetch('/api/print/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'walgreens',
+        zip,
+        customer: contact,
+        product: {
+          type: '4x6',
+          quantity: 1
+        },
+        image: {
+          kind: 'passport_sheet_4x6',
+          dataUrl: buildPrintableSheetDataUrl()
+        }
+      })
+    });
+    const result = await response.json();
+    printOrderStatus.textContent = result.message || `Walgreens handoff status: ${result.status || response.status}`;
+  } catch {
+    printOrderStatus.textContent = 'Walgreens handoff is unavailable right now. Download the 4x6 sheet and try again later.';
+  } finally {
+    printOrderButton.disabled = false;
+  }
+};
+
 country.addEventListener('change', updateRequirementSummary);
 documentType.addEventListener('change', updateRequirementSummary);
 
@@ -1557,6 +1624,7 @@ photoFrame.addEventListener('pointercancel', stopPreviewDrag);
 resetButton.addEventListener('click', resetState);
 downloadDigitalButton.addEventListener('click', downloadDigitalPhoto);
 downloadPrintButton.addEventListener('click', downloadPrintableSheet);
+printOrderForm.addEventListener('submit', submitPrintOrder);
 
 cameraButton.addEventListener('click', () => {
   openCameraModal();
