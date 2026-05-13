@@ -4,6 +4,13 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-13
 
+### `41d1464` - Clear generated variants on reupload
+
+- Clears stale **AI suggested**, **White background**, and **Lighting enhanced** previews as soon as a replacement photo is uploaded.
+- Re-selects **Original** for the new upload while the agent regenerates fresh variants.
+- Added browser coverage so generated variant cards must be empty and disabled immediately after reupload.
+- Verification: `node --check app.js` and `npm test`.
+
 ### `2641707` - Split AI and white background variants
 
 - Separated **AI suggested** from **White background** so each uses its own OpenAI image-edit prompt.
