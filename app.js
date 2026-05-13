@@ -758,7 +758,7 @@ const requestPhotoSuggestion = async (file) => {
         : 'Retake recommended: upload a clear front-facing human passport photo before using AI suggestions.';
       return;
     }
-    await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || suggestion.variants?.whiteBackgroundDataUrl || '');
+    await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || '');
     await setVariant('white', suggestion.variants?.whiteBackgroundDataUrl || '');
     await setVariant('lighting', suggestion.variants?.lightingDataUrl || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
     if (analysis.isHuman !== false && suggestion.message && suggestion.mode !== 'server fallback') {
@@ -941,8 +941,8 @@ const applyBackgroundMode = () => {
 
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
-    'replace-white': 'Requesting a server-side white-background variant. The original stays available.',
-    'ai-cleanup': 'Requesting an AI suggested photo while preserving facial features.'
+    'replace-white': 'Requesting a strict white-background-only variant. The original stays available.',
+    'ai-cleanup': 'Requesting a recommended compliant background while preserving facial features.'
   };
 
   backgroundNote.textContent = backgroundMessages[selectedBackgroundMode];
@@ -973,8 +973,8 @@ const applyBackgroundMode = () => {
 
   setChecklistItem('background', 'warning', 'AI background pending');
   setAiCheck('background', 'warning', selectedBackgroundMode === 'ai-cleanup'
-    ? 'AI suggested photo is being prepared on the server.'
-    : 'White background variant is being prepared on the server.');
+    ? 'AI suggested photo is choosing a recommended compliant background on the server.'
+    : 'White background variant is changing only the background to white.');
   requestBackgroundEdit();
 };
 

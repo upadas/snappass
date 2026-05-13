@@ -430,13 +430,24 @@ const editBackgroundWithOpenAi = async ({ imageDataUrl, mode, country, documentT
   const form = new FormData();
   const imageBlob = await dataUrlToBlob(imageDataUrl);
   const specMarkdown = readSpecMarkdown(country, documentType);
+  const promptByMode = {
+    'ai-cleanup': [
+      'Create a recommended passport-photo background for this selected document spec.',
+      'Remove background objects, texture, room details, and shadows.',
+      'Choose the safest compliant background tone for the spec, usually smooth white or off-white, and keep it natural.',
+      'Apply only gentle global lighting and contrast balancing if needed.'
+    ].join(' '),
+    'replace-white': [
+      'Change only the background to clean pure white for a passport photo.',
+      'Do not apply beauty retouching, lighting enhancement, contrast changes, clothing edits, crop changes, or any other adjustment.',
+      'This is a strict background-only edit.'
+    ].join(' ')
+  };
   form.append('model', openAiImageModel);
   form.append('image', imageBlob, 'passport-source.png');
   form.append('size', '1024x1024');
   form.append('prompt', [
-    mode === 'ai-cleanup'
-      ? 'Remove background objects and replace the backdrop with a smooth plain white or off-white passport-photo background. Apply only gentle global lighting and contrast balancing if needed.'
-      : 'Replace the full background with clean pure white for a passport photo. Apply only gentle global lighting and contrast balancing if needed.',
+    promptByMode[mode] || promptByMode['ai-cleanup'],
     `Follow this spec:\n${specMarkdown}`,
     'Do not change facial features, identity, skin texture, hairline, expression, head shape, eye shape, nose, mouth, clothing, pose, or facial geometry.',
     'If eyes or facial features are blurry or unclear, do not invent or sharpen facial details. Leave the face unchanged.'
@@ -576,10 +587,15 @@ const handleSuggest = async (request, response) => {
       return;
     }
 
+    let aiSuggestedDataUrl = null;
     let whiteBackgroundDataUrl = null;
     try {
-      whiteBackgroundDataUrl = await editBackgroundWithOpenAi({ ...body, mode: 'replace-white' });
+      [aiSuggestedDataUrl, whiteBackgroundDataUrl] = await Promise.all([
+        editBackgroundWithOpenAi({ ...body, mode: 'ai-cleanup' }).catch(() => null),
+        editBackgroundWithOpenAi({ ...body, mode: 'replace-white' }).catch(() => null)
+      ]);
     } catch {
+      aiSuggestedDataUrl = null;
       whiteBackgroundDataUrl = null;
     }
 
@@ -587,12 +603,12 @@ const handleSuggest = async (request, response) => {
       mode: 'openai',
       analysis: mergedAnalysis,
       variants: {
-        aiSuggestedDataUrl: whiteBackgroundDataUrl,
+        aiSuggestedDataUrl,
         whiteBackgroundDataUrl,
         lightingDataUrl: null
       },
-      message: whiteBackgroundDataUrl
-        ? 'AI suggested and white-background variants are ready. Choose the version you prefer.'
+      message: aiSuggestedDataUrl || whiteBackgroundDataUrl
+        ? 'AI suggested and white-background variants are ready. AI suggested uses a recommended compliant background; white background is a strict background-only edit.'
         : 'AI analysis is ready. Background editing was unavailable, so the original remains selected.'
     });
   } catch (error) {

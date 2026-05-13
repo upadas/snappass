@@ -27,7 +27,8 @@ The photo compliance agent runs after upload and compares the image against the 
 - Lighting enhancement should be gentle and reversible.
 - The original upload remains the source of truth unless the user chooses an enhanced preview.
 - If no API key is configured, SnapPass uses local fallback checks and clearly labels the preview behavior.
-- Background replacement may alter only the background.
+- AI suggested background cleanup should choose the safest compliant background for the selected spec, usually smooth white or off-white.
+- White background replacement may alter only the background and must use strict white, with no lighting, contrast, clothing, crop, or facial changes.
 - Gentle contrast and brightness balancing is allowed only when the original eyes and facial features are already clear.
 - If eyes or facial features are not clear, do not invent, sharpen, redraw, or repair them. Recommend a new upload instead.
 
