@@ -81,6 +81,8 @@ let suggestionRequestId = 0;
 let currentAiFindings = {
   hasHumanWarning: false,
   hasHeadIssue: false,
+  hasEyeClarityIssue: false,
+  retakeRequired: false,
   recommendedZoom: 100,
   recommendedRotation: 0
 };
@@ -95,7 +97,9 @@ let localImageFindings = {
   isHuman: true,
   warning: '',
   backgroundPlain: true,
-  lightingEven: true
+  lightingEven: true,
+  eyesClear: true,
+  retakeRequired: false
 };
 
 const documentSpecs = {
@@ -436,7 +440,7 @@ const isSkinTone = (red, green, blue) => (
 
 const analyzePortraitPixels = () => {
   if (!photoPreview.naturalWidth || !photoPreview.naturalHeight) {
-    return { isHuman: true, warning: '' };
+    return { isHuman: true, warning: '', eyesClear: true, retakeRequired: false };
   }
 
   const canvas = document.createElement('canvas');
@@ -504,18 +508,42 @@ const analyzePortraitPixels = () => {
   return { isHuman: true, warning: '', backgroundPlain, lightingEven };
 };
 
+const analysisNeedsRetake = (analysis = {}) => {
+  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings.join(' ') : '';
+  return (
+    analysis.retakeRequired === true ||
+    analysis.enhancementAllowed === false ||
+    analysis.isHuman === false ||
+    analysis.eyeClarity === 'warning' ||
+    localImageFindings.retakeRequired === true ||
+    localImageFindings.eyesClear === false ||
+    /blur|blurry|soft focus|out of focus|eyes.*unclear|facial.*unclear|not sharp/i.test(warnings)
+  );
+};
+
 const mergeLocalImageFindings = (analysis) => {
-  if (localImageFindings.isHuman) {
+  if (localImageFindings.isHuman && localImageFindings.eyesClear !== false && !localImageFindings.retakeRequired) {
     return analysis;
   }
 
+  const localWarnings = [
+    localImageFindings.warning,
+    localImageFindings.eyesClear === false ? 'Eyes or facial features are not sharp enough. Upload a sharper front-facing photo.' : null
+  ].filter(Boolean);
+
   return {
     ...analysis,
-    isHuman: false,
-    warnings: [localImageFindings.warning, ...(analysis.warnings || [])],
+    isHuman: localImageFindings.isHuman === false ? false : analysis.isHuman,
+    eyeClarity: localImageFindings.eyesClear === false ? 'warning' : analysis.eyeClarity,
+    retakeRequired: localImageFindings.retakeRequired || localImageFindings.isHuman === false || localImageFindings.eyesClear === false || analysis.retakeRequired,
+    enhancementAllowed: false,
+    warnings: [...localWarnings, ...(analysis.warnings || [])],
     checks: {
       ...(analysis.checks || {}),
-      human: localImageFindings.warning
+      human: localImageFindings.isHuman === false ? localImageFindings.warning : analysis.checks?.human,
+      eyeClarity: localImageFindings.eyesClear === false
+        ? 'Eyes or facial features are not sharp enough. Retake with a clearer photo.'
+        : analysis.checks?.eyeClarity
     }
   };
 };
@@ -523,26 +551,33 @@ const mergeLocalImageFindings = (analysis) => {
 const runAiAssessment = (file) => {
   const name = file.name.toLowerCase();
   const isLikelyNotHuman = /object|pet|car|vehicle|logo|document|landscape|room|food/.test(name) || !localImageFindings.isHuman;
+  const hasEyeClarityIssue = /blur|blurry|soft|unclear|out-of-focus|outoffocus|eyes-closed|closed-eye/.test(name) || localImageFindings.eyesClear === false;
   const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name) || !localImageFindings.lightingEven;
   const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
   const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name) || !localImageFindings.backgroundPlain;
+  const retakeRequired = isLikelyNotHuman || hasEyeClarityIssue;
 
   currentAiFindings = {
     hasHumanWarning: isLikelyNotHuman,
     hasHeadIssue,
+    hasEyeClarityIssue,
+    retakeRequired,
     recommendedZoom: 100,
     recommendedRotation: 0
   };
   applySuggestionButton.hidden = false;
-  humanWarning.hidden = !isLikelyNotHuman;
-  aiStatus.textContent = isLikelyNotHuman ? 'Retake needed' : 'AI preview';
-  aiStatus.classList.toggle('is-warning', isLikelyNotHuman || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
+  humanWarning.hidden = !retakeRequired;
+  humanWarning.textContent = hasEyeClarityIssue
+    ? 'Warning: eyes or facial features are not clear enough. Upload a sharper front-facing photo; AI will not alter facial details.'
+    : 'Warning: this does not appear to be a human passport-style portrait. Upload a front-facing photo of one person.';
+  aiStatus.textContent = retakeRequired ? 'Retake needed' : 'AI preview';
+  aiStatus.classList.toggle('is-warning', retakeRequired || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
 
-  if (isLikelyNotHuman) {
+  if (retakeRequired) {
     setChecklistItem('human', 'warning', 'Human subject needs review');
     setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
     setChecklistItem('background', 'warning', 'Background check blocked');
-    setChecklistItem('lighting', 'warning', `${activeSpec.eyes} blocked`);
+    setChecklistItem('lighting', 'warning', hasEyeClarityIssue ? 'Retake: eyes unclear' : `${activeSpec.eyes} blocked`);
   }
 
   setAiCheck(
@@ -554,8 +589,10 @@ const runAiAssessment = (file) => {
   );
   setAiCheck(
     'lighting',
-    hasLightingIssue ? 'warning' : 'pass',
-    hasLightingIssue
+    hasEyeClarityIssue || hasLightingIssue ? 'warning' : 'pass',
+    hasEyeClarityIssue
+      ? 'Eyes or facial features are blurred or unclear. Upload a new sharper photo instead of enhancing.'
+      : hasLightingIssue
       ? 'Lighting may be uneven. Retake in soft front light with no shadows.'
       : 'Lighting appears even enough for preview.'
   );
@@ -578,28 +615,34 @@ const runAiAssessment = (file) => {
 const applyAiFindings = (analysis) => {
   const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
   const hasHumanWarning = analysis.isHuman === false;
+  const hasEyeClarityIssue = analysis.eyeClarity === 'warning' || analysisNeedsRetake(analysis);
   const hasLightingIssue = analysis.lighting === 'warning';
   const hasHeadIssue = analysis.headCentered === 'warning';
   const hasBackgroundIssue = analysis.background === 'warning';
+  const retakeRequired = hasHumanWarning || hasEyeClarityIssue || analysis.retakeRequired === true || analysis.enhancementAllowed === false;
 
   currentAiFindings = {
     hasHumanWarning,
+    hasEyeClarityIssue,
     hasHeadIssue,
+    retakeRequired,
     recommendedZoom: Number(analysis.recommendedZoom || 100),
     recommendedRotation: Number(analysis.recommendedRotation || 0)
   };
 
-  humanWarning.hidden = !hasHumanWarning;
-  humanWarning.textContent = warnings[0] || 'Warning: upload a front-facing photo of one person.';
-  aiStatus.textContent = hasHumanWarning ? 'Retake needed' : 'AI preview';
-  aiStatus.classList.toggle('is-warning', hasHumanWarning || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
+  humanWarning.hidden = !retakeRequired;
+  humanWarning.textContent = warnings[0] || (hasEyeClarityIssue
+    ? 'Warning: eyes or facial features are not clear enough. Upload a sharper front-facing photo; AI will not alter facial details.'
+    : 'Warning: upload a front-facing photo of one person.');
+  aiStatus.textContent = retakeRequired ? 'Retake needed' : 'AI preview';
+  aiStatus.classList.toggle('is-warning', retakeRequired || hasLightingIssue || hasHeadIssue || hasBackgroundIssue);
   applySuggestionButton.hidden = false;
 
-  if (hasHumanWarning) {
+  if (retakeRequired) {
     setChecklistItem('human', 'warning', 'Human subject needs review');
     setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
     setChecklistItem('background', 'warning', 'Background check blocked');
-    setChecklistItem('lighting', 'warning', `${activeSpec.eyes} blocked`);
+    setChecklistItem('lighting', 'warning', hasEyeClarityIssue ? 'Retake: eyes unclear' : `${activeSpec.eyes} blocked`);
   } else {
     setChecklistItem('human', 'pass', 'Human subject');
     setChecklistItem('background', hasBackgroundIssue ? 'warning' : 'pass', hasBackgroundIssue ? 'Background needs review' : 'Background: plain white');
@@ -615,8 +658,10 @@ const applyAiFindings = (analysis) => {
   );
   setAiCheck(
     'lighting',
-    hasLightingIssue ? 'warning' : 'pass',
-    analysis.checks?.lighting || (hasLightingIssue
+    hasEyeClarityIssue || hasLightingIssue ? 'warning' : 'pass',
+    analysis.checks?.eyeClarity || analysis.checks?.lighting || (hasEyeClarityIssue
+      ? 'Eyes or facial features are blurred or unclear. Upload a new sharper photo instead of enhancing.'
+      : hasLightingIssue
       ? 'Lighting may be uneven. Retake in soft front light.'
       : 'Lighting appears even enough for preview.')
   );
@@ -699,6 +744,15 @@ const requestPhotoSuggestion = async (file) => {
     }
 
     applyAiFindings(analysis);
+    if (analysisNeedsRetake(analysis)) {
+      await setVariant('ai', '');
+      await setVariant('white', '');
+      await setVariant('lighting', '');
+      advisorSummary.textContent = analysis.eyeClarity === 'warning'
+        ? 'Retake recommended: eyes or facial features are not clear enough. Upload a sharper front-facing photo.'
+        : 'Retake recommended: upload a clear front-facing human passport photo before using AI suggestions.';
+      return;
+    }
     await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || suggestion.variants?.whiteBackgroundDataUrl || '');
     await setVariant('white', suggestion.variants?.whiteBackgroundDataUrl || '');
     await setVariant('lighting', suggestion.variants?.lightingDataUrl || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
@@ -905,6 +959,13 @@ const applyBackgroundMode = () => {
     return;
   }
 
+  if (currentAiFindings.retakeRequired) {
+    setChecklistItem('background', 'warning', 'Retake before cleanup');
+    setAiCheck('background', 'warning', 'AI cleanup is disabled because eyes or facial features are not clear enough.');
+    backgroundNote.textContent = 'Upload a sharper front-facing photo before using AI background cleanup.';
+    return;
+  }
+
   setChecklistItem('background', 'warning', 'AI background pending');
   setAiCheck('background', 'warning', selectedBackgroundMode === 'ai-cleanup'
     ? 'AI suggested photo is being prepared on the server.'
@@ -918,6 +979,13 @@ const applyLightingMode = async () => {
   }
 
   if (lightingMode.value === 'auto-enhance') {
+    if (currentAiFindings.retakeRequired) {
+      setChecklistItem('lighting', 'warning', 'Retake: eyes unclear');
+      setAiCheck('lighting', 'warning', 'Lighting enhancement is disabled because eyes or facial features are not clear enough.');
+      backgroundNote.textContent = 'Upload a sharper front-facing photo before using lighting enhancement.';
+      await selectVariant('original');
+      return;
+    }
     const lightingDataUrl = photoVariants.lighting || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true });
     await setVariant('lighting', lightingDataUrl);
     await selectVariant('lighting');
@@ -1048,6 +1116,8 @@ const resetState = () => {
   currentAiFindings = {
     hasHumanWarning: false,
     hasHeadIssue: false,
+    hasEyeClarityIssue: false,
+    retakeRequired: false,
     recommendedZoom: 100,
     recommendedRotation: 0
   };
@@ -1062,7 +1132,9 @@ const resetState = () => {
     isHuman: true,
     warning: '',
     backgroundPlain: true,
-    lightingEven: true
+    lightingEven: true,
+    eyesClear: true,
+    retakeRequired: false
   };
   photoInput.value = '';
   photoPreview.removeAttribute('src');

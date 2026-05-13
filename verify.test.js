@@ -225,7 +225,9 @@ test('prototype includes AI assessment checks for human subject, lighting, and h
   assert.match(js, /applyAiFindings/);
   assert.match(js, /analyzePortraitPixels/);
   assert.match(js, /mergeLocalImageFindings/);
-  assert.match(js, /humanWarning\.hidden\s*=\s*!isLikelyNotHuman/);
+  assert.match(js, /analysisNeedsRetake/);
+  assert.match(js, /humanWarning\.hidden\s*=\s*!retakeRequired/);
+  assert.match(js, /eyes or facial features/i);
   assert.match(js, /isLikelyNotHuman/);
 });
 
@@ -271,6 +273,9 @@ test('server exposes private AI photo agent endpoints', () => {
   const printAgent = read('docs/agents/print-provider-agent.md');
 
   assert.match(server, /OPENAI_API_KEY/);
+  assert.match(server, /eyeClarity/);
+  assert.match(server, /retakeRequired/);
+  assert.match(server, /enhancementAllowed/);
   assert.match(server, /\/api\/photo\/analyze/);
   assert.match(server, /\/api\/photo\/agent-status/);
   assert.match(server, /\/api\/photo\/spec/);
@@ -283,12 +288,15 @@ test('server exposes private AI photo agent endpoints', () => {
   assert.match(server, /aiConfigured/);
   assert.match(server, /docs', 'photo-specs/);
   assert.match(server, /do not change facial features/i);
+  assert.match(server, /do not invent or sharpen facial details/i);
   assert.match(usPassportSpec, /Head must be centered/);
   assert.match(usPassportSpec, /50-69%/);
   assert.match(usPassportSpec, /56-69%/);
   assert.match(indiaPassportSpec, /51 x 51 mm/);
   assert.match(indiaPassportSpec, /plain white/);
   assert.match(photoAgent, /Keep the original photo available/);
+  assert.match(photoAgent, /Refuse enhancement/);
+  assert.match(photoAgent, /do not invent, sharpen, redraw, or repair/);
   assert.match(printAgent, /Walmart/);
   assert.match(printAgent, /Walgreens/);
 });

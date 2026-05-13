@@ -69,17 +69,23 @@ const fallbackAnalysis = ({ filename = '' } = {}) => {
   const hasLightingIssue = /dark|shadow|glare|dim|bright/.test(name);
   const hasHeadIssue = /offcenter|off-center|side|tilt|far/.test(name);
   const hasBackgroundIssue = /busy|background|object|room|pattern/.test(name);
+  const hasEyeClarityIssue = /blur|blurry|soft|unclear|out-of-focus|outoffocus|eyes-closed|closed-eye/.test(name);
+  const retakeRequired = isLikelyNotHuman || hasEyeClarityIssue;
 
   return {
     mode: 'server fallback',
     isHuman: !isLikelyNotHuman,
+    eyeClarity: hasEyeClarityIssue ? 'warning' : 'pass',
     lighting: hasLightingIssue ? 'warning' : 'pass',
     headCentered: hasHeadIssue ? 'warning' : 'pass',
     background: hasBackgroundIssue ? 'warning' : 'pass',
+    retakeRequired,
+    enhancementAllowed: !retakeRequired,
     recommendedZoom: 100,
     recommendedRotation: 0,
     warnings: [
       isLikelyNotHuman ? 'No clear human passport portrait detected.' : null,
+      hasEyeClarityIssue ? 'Eyes or facial features are blurred or unclear. Upload a sharper front-facing photo; do not use AI enhancement.' : null,
       hasLightingIssue ? 'Lighting may be uneven. Retake in soft front light.' : null,
       hasHeadIssue ? 'Head may be off center. Apply the suggested crop or retake straight-on.' : null,
       hasBackgroundIssue ? 'Background may contain clutter. Use white replacement or AI cleanup.' : null
@@ -88,6 +94,9 @@ const fallbackAnalysis = ({ filename = '' } = {}) => {
       human: isLikelyNotHuman
         ? 'No clear human portrait detected in fallback checks.'
         : 'Looks like a single front-facing portrait.',
+      eyeClarity: hasEyeClarityIssue
+        ? 'Eyes or facial features are not sharp enough. Retake with a clearer photo.'
+        : 'Eyes and facial features appear clear enough for review.',
       lighting: hasLightingIssue
         ? 'Lighting may be uneven. Retake in soft front light with no shadows.'
         : 'Lighting appears even enough for preview.',
@@ -99,6 +108,17 @@ const fallbackAnalysis = ({ filename = '' } = {}) => {
         : 'Background appears plain for preview.'
     }
   };
+};
+
+const shouldRequireRetake = (analysis = {}) => {
+  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings.join(' ') : '';
+  return (
+    analysis.retakeRequired === true ||
+    analysis.enhancementAllowed === false ||
+    analysis.isHuman === false ||
+    analysis.eyeClarity === 'warning' ||
+    /blur|blurry|soft focus|out of focus|eyes.*unclear|facial.*unclear|not sharp/i.test(warnings)
+  );
 };
 
 const getOutputText = (data) => {
@@ -198,8 +218,10 @@ const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
               text: [
                 `Document target: ${country || 'us'} ${documentType || 'passport'}.`,
                 `Official/local spec markdown:\n${specMarkdown}`,
-                'Return strict JSON with keys: isHuman boolean, lighting pass|warning, headCentered pass|warning, background pass|warning, recommendedZoom number 80-140, recommendedRotation number -8 to 8, warnings string[], checks object with human lighting head background strings.',
-                'Check whether the subject is human, front-facing, evenly lit, centered, and on an acceptable plain white or off-white passport background.'
+                'Return strict JSON with keys: isHuman boolean, eyeClarity pass|warning, lighting pass|warning, headCentered pass|warning, background pass|warning, retakeRequired boolean, enhancementAllowed boolean, recommendedZoom number 80-140, recommendedRotation number -8 to 8, warnings string[], checks object with human eyeClarity lighting head background strings.',
+                'Check whether the subject is human, front-facing, evenly lit, centered, and on an acceptable plain white or off-white passport background.',
+                'If the eyes are blurred, closed, obscured, out of focus, or facial features are not clearly visible, set eyeClarity warning, retakeRequired true, enhancementAllowed false, and explain that the user must upload a new sharper photo.',
+                'Do not suggest AI repair for blurred eyes or unclear facial features.'
               ].join(' ')
             },
             {
@@ -237,10 +259,11 @@ const editBackgroundWithOpenAi = async ({ imageDataUrl, mode, country, documentT
   form.append('size', '1024x1024');
   form.append('prompt', [
     mode === 'ai-cleanup'
-      ? 'Remove background objects and replace the backdrop with a smooth plain white or off-white passport-photo background.'
-      : 'Replace the full background with clean pure white for a passport photo.',
+      ? 'Remove background objects and replace the backdrop with a smooth plain white or off-white passport-photo background. Apply only gentle global lighting and contrast balancing if needed.'
+      : 'Replace the full background with clean pure white for a passport photo. Apply only gentle global lighting and contrast balancing if needed.',
     `Follow this spec:\n${specMarkdown}`,
-    'Do not change facial features, identity, skin texture, hairline, expression, head shape, clothing, pose, or facial geometry.'
+    'Do not change facial features, identity, skin texture, hairline, expression, head shape, eye shape, nose, mouth, clothing, pose, or facial geometry.',
+    'If eyes or facial features are blurry or unclear, do not invent or sharpen facial details. Leave the face unchanged.'
   ].join(' '));
 
   const response = await fetch('https://api.openai.com/v1/images/edits', {
@@ -305,6 +328,17 @@ const handleBackground = async (request, response) => {
       return;
     }
 
+    const analysis = await analyzeWithOpenAi(body);
+    if (shouldRequireRetake(analysis)) {
+      sendJson(response, 200, {
+        mode: 'openai',
+        imageDataUrl: null,
+        analysis,
+        message: 'Retake recommended: eyes or facial features are not clear enough for AI cleanup. Upload a sharper front-facing photo.'
+      });
+      return;
+    }
+
     const imageDataUrl = await editBackgroundWithOpenAi(body);
     sendJson(response, 200, {
       mode: 'openai',
@@ -330,6 +364,7 @@ const handleSuggest = async (request, response) => {
 
     const baseAnalysis = fallbackAnalysis(body);
     if (!openAiApiKey) {
+      const fallbackRetakeRequired = shouldRequireRetake(baseAnalysis);
       sendJson(response, 200, {
         mode: 'server fallback',
         analysis: baseAnalysis,
@@ -338,12 +373,33 @@ const handleSuggest = async (request, response) => {
           whiteBackgroundDataUrl: null,
           lightingDataUrl: null
         },
-        message: 'AI suggestions are not configured on this server yet. Original photo remains selected and a lighting preview is available.'
+        message: fallbackRetakeRequired
+          ? 'Retake recommended: upload a clear front-facing human passport photo before using AI suggestions.'
+          : 'AI suggestions are not configured on this server yet. Original photo remains selected and a lighting preview is available.'
       });
       return;
     }
 
     const analysis = await analyzeWithOpenAi(body);
+    const mergedAnalysis = { ...baseAnalysis, ...analysis };
+    if (shouldRequireRetake(mergedAnalysis)) {
+      sendJson(response, 200, {
+        mode: 'openai',
+        analysis: {
+          ...mergedAnalysis,
+          retakeRequired: true,
+          enhancementAllowed: false
+        },
+        variants: {
+          aiSuggestedDataUrl: null,
+          whiteBackgroundDataUrl: null,
+          lightingDataUrl: null
+        },
+        message: 'Retake recommended: eyes or facial features are not clear enough. Upload a sharper front-facing photo; SnapPass will not use AI to invent or change facial details.'
+      });
+      return;
+    }
+
     let whiteBackgroundDataUrl = null;
     try {
       whiteBackgroundDataUrl = await editBackgroundWithOpenAi({ ...body, mode: 'replace-white' });
@@ -353,7 +409,7 @@ const handleSuggest = async (request, response) => {
 
     sendJson(response, 200, {
       mode: 'openai',
-      analysis: { ...baseAnalysis, ...analysis },
+      analysis: mergedAnalysis,
       variants: {
         aiSuggestedDataUrl: whiteBackgroundDataUrl,
         whiteBackgroundDataUrl,

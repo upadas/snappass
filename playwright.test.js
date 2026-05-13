@@ -61,6 +61,17 @@ const uploadSample = async (page, name = 'portrait.svg', buffer = portraitSvg) =
   await page.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
 };
 
+const uploadRetakeSample = async (page, name, buffer) => {
+  await page.setInputFiles('#photoInput', {
+    name,
+    mimeType: 'image/svg+xml',
+    buffer
+  });
+  await page.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+  await page.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() === 'Retake needed');
+  await page.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
+};
+
 const dropSample = async (page, name = 'portrait.svg', buffer = portraitSvg) => {
   await page.evaluate(({ filename, svg }) => {
     const file = new File([svg], filename, { type: 'image/svg+xml' });
@@ -372,7 +383,7 @@ const run = async () => {
 
     const warningPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     await warningPage.goto(appUrl);
-    await uploadSample(warningPage, 'city-street.svg', nonPortraitSvg);
+    await uploadRetakeSample(warningPage, 'city-street.svg', nonPortraitSvg);
     const aiWarning = await warningPage.evaluate(() => ({
       aiStatus: document.querySelector('#aiStatus').textContent.trim(),
       humanWarningHidden: document.querySelector('#humanWarning').hidden,
@@ -383,11 +394,43 @@ const run = async () => {
     }));
     assert.equal(aiWarning.aiStatus, 'Retake needed');
     assert.equal(aiWarning.humanWarningHidden, false);
-    assert.match(aiWarning.advisorSummary, /No clear human face area detected|Human subject|human passport-style portrait/i);
+    assert.match(aiWarning.advisorSummary, /No clear human face area detected|Human subject|human passport-style portrait|front-facing human passport photo/i);
     assert.match(aiWarning.humanCheck, /Human subject needs review/);
     assert.match(aiWarning.headCheck, /blocked/);
     assert.ok(aiWarning.warningCount >= 1);
     await warningPage.close();
+
+    const blurryPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await blurryPage.goto(appUrl);
+    await blurryPage.setInputFiles('#photoInput', {
+      name: 'blurry-eyes.svg',
+      mimeType: 'image/svg+xml',
+      buffer: portraitSvg
+    });
+    await blurryPage.waitForFunction(() => document.querySelector('#aiStatus').textContent.trim() === 'Retake needed');
+    const blurryState = await blurryPage.evaluate(() => ({
+      aiStatus: document.querySelector('#aiStatus').textContent.trim(),
+      humanWarningHidden: document.querySelector('#humanWarning').hidden,
+      humanWarning: document.querySelector('#humanWarning').textContent.trim(),
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
+      lightingCheck: document.querySelector('[data-check="lighting"]').textContent.trim(),
+      aiDisabled: document.querySelector('[data-variant="ai"]').disabled,
+      whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
+      lightingDisabled: document.querySelector('[data-variant="lighting"]').disabled,
+      aiHasSrc: document.querySelector('#variantAiPreview').hasAttribute('src'),
+      lightingHasSrc: document.querySelector('#variantLightingPreview').hasAttribute('src')
+    }));
+    assert.equal(blurryState.aiStatus, 'Retake needed');
+    assert.equal(blurryState.humanWarningHidden, false);
+    assert.match(blurryState.humanWarning, /eyes|facial features|sharper/i);
+    assert.match(blurryState.advisorSummary, /Retake|eyes|facial features|sharper/i);
+    assert.match(blurryState.lightingCheck, /Retake|eyes/i);
+    assert.equal(blurryState.aiDisabled, true);
+    assert.equal(blurryState.whiteDisabled, true);
+    assert.equal(blurryState.lightingDisabled, true);
+    assert.equal(blurryState.aiHasSrc, false);
+    assert.equal(blurryState.lightingHasSrc, false);
+    await blurryPage.close();
   } finally {
     await browser.close();
     server.kill();
