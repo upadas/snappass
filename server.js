@@ -115,15 +115,36 @@ const fallbackAnalysis = ({ filename = '' } = {}) => {
   };
 };
 
-const shouldRequireRetake = (analysis = {}) => {
-  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings.join(' ') : '';
+const hasRetakeOnlyIssue = (analysis = {}) => {
+  const checks = analysis.checks || {};
+  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
+  const humanAndFaceItems = [
+    ...warnings,
+    checks.human,
+    checks.eyeClarity
+  ].filter(Boolean);
   return (
-    analysis.retakeRequired === true ||
-    analysis.enhancementAllowed === false ||
     analysis.isHuman === false ||
     analysis.eyeClarity === 'warning' ||
-    /blur|blurry|soft focus|out of focus|eyes.*unclear|facial.*unclear|not sharp/i.test(warnings)
+    humanAndFaceItems.some((item) => (
+      /no clear human|not a human|not human|does not appear to be a human|human.*not detected|multiple faces|more than one face|not front-facing|side profile/i.test(item) ||
+      /eyes?.*(blur|blurry|unclear|closed|obscured|out of focus|not sharp|not clear)/i.test(item) ||
+      /(blur|blurry|unclear|obscured|out of focus|not sharp|not clear).*eyes?/i.test(item) ||
+      /facial features?.*(blur|blurry|unclear|obscured|out of focus|not sharp|not clear)/i.test(item) ||
+      /(blur|blurry|unclear|obscured|out of focus|not sharp|not clear).*facial features?/i.test(item)
+    ))
   );
+};
+
+const shouldRequireRetake = (analysis = {}) => hasRetakeOnlyIssue(analysis);
+
+const normalizeAnalysisForEditing = (analysis = {}) => {
+  const retakeRequired = shouldRequireRetake(analysis);
+  return {
+    ...analysis,
+    retakeRequired,
+    enhancementAllowed: !retakeRequired
+  };
 };
 
 const getOutputText = (data) => {
@@ -487,8 +508,8 @@ const handleAnalyze = async (request, response) => {
       return;
     }
 
-    const analysis = await analyzeWithOpenAi(body);
-    sendJson(response, 200, { mode: 'openai', ...fallbackAnalysis(body), ...analysis });
+    const analysis = normalizeAnalysisForEditing({ ...fallbackAnalysis(body), ...(await analyzeWithOpenAi(body)) });
+    sendJson(response, 200, { mode: 'openai', ...analysis });
   } catch (error) {
     sendJson(response, 200, {
       ...fallbackAnalysis({}),
@@ -515,7 +536,7 @@ const handleBackground = async (request, response) => {
       return;
     }
 
-    const analysis = await analyzeWithOpenAi(body);
+    const analysis = normalizeAnalysisForEditing(await analyzeWithOpenAi(body));
     if (shouldRequireRetake(analysis)) {
       sendJson(response, 200, {
         mode: 'openai',
@@ -568,7 +589,7 @@ const handleSuggest = async (request, response) => {
     }
 
     const analysis = await analyzeWithOpenAi(body);
-    const mergedAnalysis = { ...baseAnalysis, ...analysis };
+    const mergedAnalysis = normalizeAnalysisForEditing({ ...baseAnalysis, ...analysis });
     if (shouldRequireRetake(mergedAnalysis)) {
       sendJson(response, 200, {
         mode: 'openai',

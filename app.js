@@ -543,15 +543,25 @@ const analyzePortraitPixels = () => {
 };
 
 const analysisNeedsRetake = (analysis = {}) => {
-  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings.join(' ') : '';
+  const checks = analysis.checks || {};
+  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
+  const humanAndFaceItems = [
+    ...warnings,
+    checks.human,
+    checks.eyeClarity
+  ].filter(Boolean);
   return (
-    analysis.retakeRequired === true ||
-    analysis.enhancementAllowed === false ||
     analysis.isHuman === false ||
     analysis.eyeClarity === 'warning' ||
     localImageFindings.retakeRequired === true ||
     localImageFindings.eyesClear === false ||
-    /blur|blurry|soft focus|out of focus|eyes.*unclear|facial.*unclear|not sharp/i.test(warnings)
+    humanAndFaceItems.some((item) => (
+      /no clear human|not a human|not human|does not appear to be a human|human.*not detected|multiple faces|more than one face|not front-facing|side profile/i.test(item) ||
+      /eyes?.*(blur|blurry|unclear|closed|obscured|out of focus|not sharp|not clear)/i.test(item) ||
+      /(blur|blurry|unclear|obscured|out of focus|not sharp|not clear).*eyes?/i.test(item) ||
+      /facial features?.*(blur|blurry|unclear|obscured|out of focus|not sharp|not clear)/i.test(item) ||
+      /(blur|blurry|unclear|obscured|out of focus|not sharp|not clear).*facial features?/i.test(item)
+    ))
   );
 };
 
@@ -653,7 +663,7 @@ const applyAiFindings = (analysis) => {
   const hasLightingIssue = analysis.lighting === 'warning';
   const hasHeadIssue = analysis.headCentered === 'warning';
   const hasBackgroundIssue = analysis.background === 'warning';
-  const retakeRequired = hasHumanWarning || hasEyeClarityIssue || analysis.retakeRequired === true || analysis.enhancementAllowed === false;
+  const retakeRequired = hasHumanWarning || hasEyeClarityIssue;
 
   currentAiFindings = {
     hasHumanWarning,

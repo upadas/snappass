@@ -20,6 +20,13 @@ const nonPortraitSvg = Buffer.from(`
   <circle cx="150" cy="485" r="35" fill="#020617"/>
   <circle cx="425" cy="485" r="35" fill="#020617"/>
 </svg>`);
+const variantSvgDataUrl = 'data:image/svg+xml;base64,' + Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" fill="#fff"/>
+  <circle cx="300" cy="215" r="125" fill="#d79a78"/>
+  <path d="M170 195c35-105 230-105 260 0" fill="#1e2524"/>
+  <rect x="200" y="355" width="200" height="210" rx="64" fill="#111827"/>
+</svg>`).toString('base64');
 
 const port = 41739;
 const appUrl = `http://127.0.0.1:${port}/`;
@@ -432,6 +439,97 @@ const run = async () => {
     assert.match(aiWarning.headCheck, /blocked/);
     assert.ok(aiWarning.warningCount >= 1);
     await warningPage.close();
+
+    const backgroundOnlyPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await backgroundOnlyPage.route('**/api/photo/analyze', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          mode: 'openai',
+          isHuman: true,
+          eyeClarity: 'pass',
+          lighting: 'pass',
+          headCentered: 'pass',
+          background: 'warning',
+          retakeRequired: true,
+          enhancementAllowed: false,
+          recommendedZoom: 100,
+          recommendedRotation: 0,
+          warnings: [
+            'Background is not plain white or off-white; it shows blurred room/details and should be replaced.'
+          ],
+          checks: {
+            human: 'Single front-facing human portrait detected.',
+            eyeClarity: 'Eyes and facial features are clear.',
+            lighting: 'Lighting appears even enough.',
+            head: 'Head appears centered.',
+            background: 'Background should be replaced with plain white.'
+          }
+        })
+      });
+    });
+    await backgroundOnlyPage.route('**/api/photo/suggest', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          mode: 'openai',
+          analysis: {
+            isHuman: true,
+            eyeClarity: 'pass',
+            lighting: 'pass',
+            headCentered: 'pass',
+            background: 'warning',
+            retakeRequired: true,
+            enhancementAllowed: false,
+            recommendedZoom: 100,
+            recommendedRotation: 0,
+            warnings: [
+              'Background is not plain white or off-white; it shows blurred room/details and should be replaced.'
+            ],
+            checks: {
+              human: 'Single front-facing human portrait detected.',
+              eyeClarity: 'Eyes and facial features are clear.',
+              lighting: 'Lighting appears even enough.',
+              head: 'Head appears centered.',
+              background: 'Background should be replaced with plain white.'
+            }
+          },
+          variants: {
+            aiSuggestedDataUrl: variantSvgDataUrl,
+            whiteBackgroundDataUrl: variantSvgDataUrl,
+            lightingDataUrl: null
+          },
+          message: 'Background-only issue: white background variants are ready.'
+        })
+      });
+    });
+    await backgroundOnlyPage.goto(appUrl);
+    await backgroundOnlyPage.setInputFiles('#photoInput', {
+      name: 'portrait-with-bokeh-background.svg',
+      mimeType: 'image/svg+xml',
+      buffer: portraitSvg
+    });
+    await backgroundOnlyPage.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+    await backgroundOnlyPage.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
+    const backgroundOnlyState = await backgroundOnlyPage.evaluate(() => ({
+      aiStatus: document.querySelector('#aiStatus').textContent.trim(),
+      humanWarningHidden: document.querySelector('#humanWarning').hidden,
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
+      backgroundCheck: document.querySelector('[data-check="background"]').textContent.trim(),
+      aiDisabled: document.querySelector('[data-variant="ai"]').disabled,
+      whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
+      aiHasSrc: document.querySelector('#variantAiPreview').hasAttribute('src'),
+      whiteHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src')
+    }));
+    assert.equal(backgroundOnlyState.aiStatus, 'AI preview', JSON.stringify(backgroundOnlyState));
+    assert.equal(backgroundOnlyState.humanWarningHidden, true);
+    assert.match(backgroundOnlyState.advisorSummary, /Background-only issue|variants are ready/);
+    assert.match(backgroundOnlyState.backgroundCheck, /Background needs review/);
+    assert.equal(backgroundOnlyState.aiDisabled, false);
+    assert.equal(backgroundOnlyState.whiteDisabled, false);
+    assert.equal(backgroundOnlyState.aiHasSrc, true);
+    assert.equal(backgroundOnlyState.whiteHasSrc, true);
+    await backgroundOnlyPage.close();
 
     const blurryPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     await blurryPage.goto(appUrl);
