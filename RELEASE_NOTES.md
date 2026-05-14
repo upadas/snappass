@@ -4,7 +4,7 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-13
 
-### `2cd7196` - Add adjusted previews and Walgreens sandbox upload
+### `5a21f4c` - Add adjusted previews and Walgreens sandbox upload
 
 - Zoom now supports up to 250% while still warning when the crop moves outside the passport guide.
 - AI analysis, AI suggestions, white-background cleanup, and bottom preview cards now use the user-adjusted photo position instead of a separate raw upload view.
