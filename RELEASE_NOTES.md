@@ -4,6 +4,14 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-13
 
+### `a6d59d7` - Allow background-only AI cleanup
+
+- Background-only failures now stay eligible for **AI suggested** and **White background** variants.
+- Retake gating is limited to non-human subjects, unclear eyes, or unclear facial features.
+- Normalized AI analysis flags so a bokeh/room background does not incorrectly become “Retake needed.”
+- Added browser coverage for the exact case where the face and eyes are clear but the background must be replaced.
+- Verification: `node --check app.js`, `node --check server.js`, and `npm test`.
+
 ### `41d1464` - Clear generated variants on reupload
 
 - Clears stale **AI suggested**, **White background**, and **Lighting enhanced** previews as soon as a replacement photo is uploaded.
