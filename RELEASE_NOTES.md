@@ -4,6 +4,14 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-13
 
+### `cdc2292` - Surface AI edit failures and avoid initial crop
+
+- Uploaded photos now start contained inside the preview slot instead of being cropped on first load.
+- Digital and print canvas output starts from the same contained image fit so users control zoom/pan before export.
+- AI variant cards now show explicit edit-failure labels instead of silent empty “Not ready” slots.
+- Added support alert recording for OpenAI image edit failures, with optional webhook routing and recent alert ids in agent status.
+- Verification: `node --check app.js`, `node --check server.js`, and `npm test`.
+
 ### `a6d59d7` - Allow background-only AI cleanup
 
 - Background-only failures now stay eligible for **AI suggested** and **White background** variants.
