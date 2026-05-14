@@ -438,7 +438,7 @@ h1 {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   opacity: 0;
   transform: translate(var(--preview-pan-x, 0%), var(--preview-pan-y, 0%)) scale(var(--preview-zoom, 1)) rotate(var(--preview-rotate, 0deg));
   transition: opacity 180ms ease, transform 180ms ease;
@@ -843,7 +843,7 @@ h1 {
 }
 
 .variant-card:disabled::before {
-  content: "Not ready";
+  content: attr(data-empty-label);
   display: grid;
   place-items: center;
   width: 100%;
@@ -853,6 +853,9 @@ h1 {
   color: var(--color-muted);
   font-size: 0.72rem;
   font-weight: 850;
+  line-height: 1.25;
+  padding: 8px;
+  text-align: center;
 }
 
 .variant-card span {

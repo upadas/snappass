@@ -405,6 +405,26 @@ const setVariant = async (name, dataUrl) => {
   }
   if (card) {
     card.disabled = !dataUrl;
+    card.dataset.emptyLabel = 'Not ready';
+  }
+};
+
+const setVariantError = (name, message, fallbackLabel = 'AI edit failed') => {
+  const card = variantCards.find((item) => item.dataset.variant === name);
+  const preview = {
+    ai: variantAiPreview,
+    white: variantWhitePreview,
+    lighting: variantLightingPreview
+  }[name];
+  if (preview) {
+    preview.removeAttribute('src');
+    preview.alt = '';
+  }
+  if (card) {
+    card.disabled = true;
+    card.classList.remove('is-selected');
+    card.dataset.emptyLabel = message ? fallbackLabel : 'Not ready';
+    card.title = message || '';
   }
 };
 
@@ -424,6 +444,8 @@ const clearGeneratedVariants = () => {
     if (card) {
       card.disabled = true;
       card.classList.remove('is-selected');
+      card.dataset.emptyLabel = 'Not ready';
+      card.title = '';
     }
   });
 };
@@ -800,6 +822,12 @@ const requestPhotoSuggestion = async (file) => {
     await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || '');
     await setVariant('white', suggestion.variants?.whiteBackgroundDataUrl || '');
     await setVariant('lighting', suggestion.variants?.lightingDataUrl || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
+    if (!suggestion.variants?.aiSuggestedDataUrl && suggestion.variantErrors?.aiSuggested) {
+      setVariantError('ai', suggestion.variantErrors.aiSuggested, 'AI edit failed');
+    }
+    if (!suggestion.variants?.whiteBackgroundDataUrl && suggestion.variantErrors?.whiteBackground) {
+      setVariantError('white', suggestion.variantErrors.whiteBackground, 'White edit failed');
+    }
     if (analysis.isHuman !== false && suggestion.message && suggestion.mode !== 'server fallback') {
       advisorSummary.textContent = suggestion.message;
     }
@@ -1359,7 +1387,7 @@ const drawPhotoToCanvas = (canvas, options = {}) => {
   context.rotate(rotate);
   context.scale(zoom, zoom);
 
-  const drawSubject = () => drawImageCover(context, photoPreview, -width / 2, -height / 2, width, height);
+  const drawSubject = () => drawImageContain(context, photoPreview, -width / 2, -height / 2, width, height);
 
   drawSubject();
   context.restore();
@@ -1384,6 +1412,29 @@ const drawImageCover = (context, image, x, y, width, height) => {
   }
 
   context.drawImage(image, cropX, cropY, cropWidth, cropHeight, x, y, width, height);
+};
+
+const drawImageContain = (context, image, x, y, width, height) => {
+  const sourceWidth = image.naturalWidth || image.videoWidth || width;
+  const sourceHeight = image.naturalHeight || image.videoHeight || height;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = width / height;
+  let drawWidth = width;
+  let drawHeight = height;
+
+  if (sourceRatio > targetRatio) {
+    drawHeight = width / sourceRatio;
+  } else {
+    drawWidth = height * sourceRatio;
+  }
+
+  context.drawImage(
+    image,
+    x + (width - drawWidth) / 2,
+    y + (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight
+  );
 };
 
 const getPrintSheetPositions = (scale = 1) => {

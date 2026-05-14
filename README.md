@@ -10,9 +10,13 @@ The OpenAI key is server-side only. The server reads Markdown requirements from 
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-5.5
 OPENAI_IMAGE_MODEL=gpt-image-1
+SUPPORT_ALERT_WEBHOOK_URL=https://your-alert-webhook
+SUPPORT_ALERT_EMAIL=support@example.com
 ```
 
 `OPENAI_MODEL` powers passport photo analysis through the Responses API. `OPENAI_IMAGE_MODEL` powers background replacement through the Images edit API. If `OPENAI_API_KEY` is not set, SnapPass still runs with local fallback checks and keeps the original photo available.
+
+If image generation fails because of quota, rate limits, billing, or provider errors, SnapPass records a support alert in server logs and exposes recent alert ids through `GET /api/photo/agent-status`. `SUPPORT_ALERT_WEBHOOK_URL` can point to Slack, Teams, PagerDuty, or another webhook receiver. `SUPPORT_ALERT_EMAIL` is stored in the alert metadata for the production support destination; wire it to an email provider or incident tool when one is chosen.
 
 Agent contracts:
 

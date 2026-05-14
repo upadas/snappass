@@ -260,6 +260,10 @@ const run = async () => {
     assert.equal(uploaded.stageAspect, true);
     assert.ok(uploaded.frameToStageRatio > 0.7);
     assert.ok(uploaded.checkerPadding >= 36 && uploaded.checkerPadding <= 56);
+    assert.equal(
+      await page.locator('#photoPreview').evaluate((element) => getComputedStyle(element).objectFit),
+      'contain'
+    );
     assert.equal(uploaded.dropReady, false);
     assert.equal(uploaded.guideVisible, true);
     assert.equal(uploaded.variantHidden, false);
@@ -530,6 +534,67 @@ const run = async () => {
     assert.equal(backgroundOnlyState.aiHasSrc, true);
     assert.equal(backgroundOnlyState.whiteHasSrc, true);
     await backgroundOnlyPage.close();
+
+    const editFailurePage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await editFailurePage.route('**/api/photo/suggest', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          mode: 'openai',
+          analysis: {
+            isHuman: true,
+            eyeClarity: 'pass',
+            lighting: 'pass',
+            headCentered: 'pass',
+            background: 'warning',
+            retakeRequired: false,
+            enhancementAllowed: true,
+            warnings: ['Background needs replacement.'],
+            checks: {
+              human: 'Single front-facing human portrait detected.',
+              eyeClarity: 'Eyes and facial features are clear.',
+              lighting: 'Lighting appears even enough.',
+              head: 'Head appears centered.',
+              background: 'Background should be replaced with plain white.'
+            }
+          },
+          variants: {
+            aiSuggestedDataUrl: null,
+            whiteBackgroundDataUrl: null,
+            lightingDataUrl: null
+          },
+          variantErrors: {
+            aiSuggested: 'OpenAI image edit failed: 429 quota exceeded.',
+            whiteBackground: 'OpenAI image edit failed: 429 quota exceeded.'
+          },
+          alertId: 'photo_abc123',
+          message: 'AI analysis is ready. Background editing failed; support alert photo_abc123 recorded.'
+        })
+      });
+    });
+    await editFailurePage.goto(appUrl);
+    await editFailurePage.setInputFiles('#photoInput', {
+      name: 'portrait-with-edit-quota-error.svg',
+      mimeType: 'image/svg+xml',
+      buffer: portraitSvg
+    });
+    await editFailurePage.waitForFunction(() => !document.querySelector('#exportPanel').hidden);
+    await editFailurePage.waitForFunction(() => !['Analyzing photo...', 'Preparing options...'].includes(document.querySelector('#aiStatus').textContent.trim()));
+    const editFailureState = await editFailurePage.evaluate(() => ({
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
+      aiLabel: document.querySelector('[data-variant="ai"]').dataset.emptyLabel,
+      whiteLabel: document.querySelector('[data-variant="white"]').dataset.emptyLabel,
+      aiDisabled: document.querySelector('[data-variant="ai"]').disabled,
+      whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
+      lightingDisabled: document.querySelector('[data-variant="lighting"]').disabled
+    }));
+    assert.match(editFailureState.advisorSummary, /support alert photo_abc123|Background editing failed/);
+    assert.match(editFailureState.aiLabel, /AI edit failed/);
+    assert.match(editFailureState.whiteLabel, /White edit failed/);
+    assert.equal(editFailureState.aiDisabled, true);
+    assert.equal(editFailureState.whiteDisabled, true);
+    assert.equal(editFailureState.lightingDisabled, false);
+    await editFailurePage.close();
 
     const blurryPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     await blurryPage.goto(appUrl);

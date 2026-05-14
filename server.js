@@ -12,9 +12,12 @@ const walgreensApiKey = process.env.WALGREENS_API_KEY || '';
 const walgreensOrderEndpoint = process.env.WALGREENS_ORDER_ENDPOINT || '';
 const walgreensAffiliateId = process.env.WALGREENS_AFFILIATE_ID || '';
 const walgreensProductId = process.env.WALGREENS_4X6_PRODUCT_ID || '4x6-print';
+const supportAlertWebhookUrl = process.env.SUPPORT_ALERT_WEBHOOK_URL || '';
+const supportAlertEmail = process.env.SUPPORT_ALERT_EMAIL || '';
 const maxJsonBytes = 12 * 1024 * 1024;
 const mobileUploads = new Map();
 const printOrders = new Map();
+const supportAlerts = [];
 const specRoot = path.join(root, 'docs', 'photo-specs');
 
 const mimeTypes = {
@@ -67,6 +70,39 @@ const readJsonBody = (request) => new Promise((resolve, reject) => {
 
   request.on('error', reject);
 });
+
+const makeAlertId = () => `photo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const summarizeError = (error) => {
+  const message = typeof error === 'string' ? error : error?.message || 'Unknown AI provider error';
+  return message.replace(/\s+/g, ' ').slice(0, 220);
+};
+
+const recordSupportAlert = (type, details = {}) => {
+  const alert = {
+    id: makeAlertId(),
+    type,
+    createdAt: new Date().toISOString(),
+    supportEmail: supportAlertEmail || null,
+    details
+  };
+
+  supportAlerts.unshift(alert);
+  supportAlerts.splice(25);
+  console.warn('[SnapPass support alert]', JSON.stringify(alert));
+
+  if (supportAlertWebhookUrl) {
+    fetch(supportAlertWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(alert)
+    }).catch((error) => {
+      console.warn('[SnapPass support alert webhook failed]', summarizeError(error));
+    });
+  }
+
+  return alert.id;
+};
 
 const fallbackAnalysis = ({ filename = '' } = {}) => {
   const name = filename.toLowerCase();
@@ -206,6 +242,12 @@ const handleAgentStatus = (response) => {
     aiConfigured: Boolean(openAiApiKey),
     analysisModel: openAiModel,
     imageModel: openAiImageModel,
+    supportAlertsConfigured: Boolean(supportAlertWebhookUrl || supportAlertEmail),
+    recentAlerts: supportAlerts.slice(0, 5).map((alert) => ({
+      id: alert.id,
+      type: alert.type,
+      createdAt: alert.createdAt
+    })),
     specCount: specFiles.length,
     endpoints: [
       '/api/photo/analyze',
@@ -447,6 +489,16 @@ const dataUrlToBlob = async (dataUrl) => {
   return new Blob([bytes], { type: mime });
 };
 
+const describeOpenAiError = (status, text) => {
+  const lower = text.toLowerCase();
+  const category = status === 429 || /quota|rate limit|billing|insufficient_quota/.test(lower)
+    ? 'quota or rate limit'
+    : status >= 500
+      ? 'provider server error'
+      : 'provider request error';
+  return `OpenAI image edit failed: ${status} ${category}. ${text.replace(/\s+/g, ' ').slice(0, 180)}`;
+};
+
 const editBackgroundWithOpenAi = async ({ imageDataUrl, mode, country, documentType }) => {
   const form = new FormData();
   const imageBlob = await dataUrlToBlob(imageDataUrl);
@@ -483,7 +535,8 @@ const editBackgroundWithOpenAi = async ({ imageDataUrl, mode, country, documentT
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI background edit failed: ${response.status}`);
+    const text = await response.text();
+    throw new Error(describeOpenAiError(response.status, text));
   }
 
   const data = await response.json();
@@ -554,10 +607,14 @@ const handleBackground = async (request, response) => {
       message: 'AI background cleanup applied without intentional facial changes.'
     });
   } catch (error) {
+    const alertId = recordSupportAlert('photo_background_edit_failed', {
+      error: summarizeError(error)
+    });
     sendJson(response, 200, {
       mode: 'server fallback',
       imageDataUrl: null,
-      message: 'AI cleanup is temporarily unavailable, so SnapPass kept the selected photo unchanged.'
+      alertId,
+      message: `AI cleanup is temporarily unavailable, so SnapPass kept the selected photo unchanged. Support alert ${alertId} recorded.`
     });
   }
 };
@@ -608,17 +665,26 @@ const handleSuggest = async (request, response) => {
       return;
     }
 
-    let aiSuggestedDataUrl = null;
-    let whiteBackgroundDataUrl = null;
-    try {
-      [aiSuggestedDataUrl, whiteBackgroundDataUrl] = await Promise.all([
-        editBackgroundWithOpenAi({ ...body, mode: 'ai-cleanup' }).catch(() => null),
-        editBackgroundWithOpenAi({ ...body, mode: 'replace-white' }).catch(() => null)
-      ]);
-    } catch {
-      aiSuggestedDataUrl = null;
-      whiteBackgroundDataUrl = null;
-    }
+    const variantErrors = {};
+    const runEdit = async (mode, key) => {
+      try {
+        return await editBackgroundWithOpenAi({ ...body, mode });
+      } catch (error) {
+        variantErrors[key] = summarizeError(error);
+        return null;
+      }
+    };
+    const [aiSuggestedDataUrl, whiteBackgroundDataUrl] = await Promise.all([
+      runEdit('ai-cleanup', 'aiSuggested'),
+      runEdit('replace-white', 'whiteBackground')
+    ]);
+    const alertId = Object.keys(variantErrors).length
+      ? recordSupportAlert('photo_variant_generation_failed', {
+        country: body.country || 'us',
+        documentType: body.documentType || 'passport',
+        variantErrors
+      })
+      : null;
 
     sendJson(response, 200, {
       mode: 'openai',
@@ -628,11 +694,16 @@ const handleSuggest = async (request, response) => {
         whiteBackgroundDataUrl,
         lightingDataUrl: null
       },
+      variantErrors,
+      alertId,
       message: aiSuggestedDataUrl || whiteBackgroundDataUrl
         ? 'AI suggested and white-background variants are ready. AI suggested uses a recommended compliant background; white background is a strict background-only edit.'
-        : 'AI analysis is ready. Background editing was unavailable, so the original remains selected.'
+        : `AI analysis is ready. Background editing failed; support alert ${alertId} recorded.`
     });
   } catch (error) {
+    const alertId = recordSupportAlert('photo_suggestion_failed', {
+      error: summarizeError(error)
+    });
     sendJson(response, 200, {
       mode: 'server fallback',
       analysis: {
@@ -644,7 +715,12 @@ const handleSuggest = async (request, response) => {
         whiteBackgroundDataUrl: null,
         lightingDataUrl: null
       },
-      message: `AI suggestion unavailable: ${error.message}`
+      variantErrors: {
+        aiSuggested: summarizeError(error),
+        whiteBackground: summarizeError(error)
+      },
+      alertId,
+      message: `AI suggestion unavailable: ${summarizeError(error)}. Support alert ${alertId} recorded.`
     });
   }
 };

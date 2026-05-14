@@ -167,6 +167,7 @@ test('zoom and rotation update crop fit warnings', () => {
   const js = read('app.js');
   const css = read('styles.css');
 
+  assert.match(css, /\.photo-frame img[\s\S]*object-fit:\s*contain/);
   assert.match(js, /evaluateCropFit/);
   assert.match(js, /setChecklistItem\('head'/);
   assert.match(js, /statusPill\.classList\.toggle\('is-danger'/);
@@ -304,6 +305,9 @@ test('server exposes private AI photo agent endpoints', () => {
   assert.match(server, /Promise\.all/);
   assert.match(server, /readSpecMarkdown/);
   assert.match(server, /handleAgentStatus/);
+  assert.match(server, /SUPPORT_ALERT_WEBHOOK_URL/);
+  assert.match(server, /recordSupportAlert/);
+  assert.match(server, /variantErrors/);
   assert.match(server, /aiConfigured/);
   assert.match(server, /docs', 'photo-specs/);
   assert.match(server, /do not change facial features/i);
@@ -330,10 +334,13 @@ test('browser keeps the OpenAI key on the server and requests agent help in the 
   assert.match(js, /fetch\('\/api\/photo\/analyze'/);
   assert.match(js, /fetch\('\/api\/photo\/background'/);
   assert.match(js, /setVariant\('ai', suggestion\.variants\?\.aiSuggestedDataUrl \|\| ''\)/);
+  assert.match(js, /setVariantError/);
+  assert.match(js, /suggestion\.variantErrors/);
   assert.doesNotMatch(js, /setVariant\('ai', suggestion\.variants\?\.aiSuggestedDataUrl \|\| suggestion\.variants\?\.whiteBackgroundDataUrl/);
   assert.match(js, /applySuggestionButton/);
   assert.match(js, /backgroundResultDataUrl/);
   assert.match(js, /preview\.removeAttribute\('src'\)/);
+  assert.match(css, /content:\s*attr\(data-empty-label\)/);
   assert.match(css, /\.variant-card img:not\(\[src\]\)/);
   assert.match(css, /\.variant-card:disabled::before/);
   assert.match(html, /id="applySuggestionButton"/);
