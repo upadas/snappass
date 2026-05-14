@@ -166,9 +166,15 @@ test('working panel keeps upload, AI status, and print preview close together', 
 test('zoom and rotation update crop fit warnings', () => {
   const js = read('app.js');
   const css = read('styles.css');
+  const html = read('index.html');
 
+  assert.match(html, /id="zoomRange" type="range" min="80" max="250" value="100"/);
   assert.match(css, /\.photo-frame img[\s\S]*object-fit:\s*contain/);
   assert.match(js, /evaluateCropFit/);
+  assert.match(js, /MAX_ZOOM\s*=\s*250/);
+  assert.match(js, /buildAdjustedPhotoDataUrl/);
+  assert.match(js, /queueAdjustedVariantRefresh/);
+  assert.match(js, /refreshAdjustedVariantPreviews/);
   assert.match(js, /setChecklistItem\('head'/);
   assert.match(js, /statusPill\.classList\.toggle\('is-danger'/);
   assert.match(js, /zoomRange\.addEventListener\('input', updatePreviewTransform\)/);
@@ -253,14 +259,22 @@ test('site documents print partner and deployment strategy', () => {
   assert.match(readme, /Vercel/);
   assert.match(readme, /AWS Amplify/);
   assert.match(envExample, /WALGREENS_API_KEY=/);
+  assert.match(envExample, /WALGREENS_ENVIRONMENT=sandbox/);
+  assert.match(envExample, /WALGREENS_CREDS_ENDPOINT=https:\/\/services-qa\.walgreens\.com\/api\/photo\/creds\/v3/);
   assert.match(envExample, /WALGREENS_ORDER_ENDPOINT=/);
   assert.match(js, /submitPrintOrder/);
   assert.match(js, /fetch\('\/api\/print\/orders'/);
   assert.match(server, /\/api\/print\/providers/);
   assert.match(server, /\/api\/print\/orders/);
+  assert.match(server, /services-qa\.walgreens\.com\/api\/photo\/creds\/v3/);
+  assert.match(server, /fetchWalgreensUploadCredentials/);
+  assert.match(server, /uploadImageToWalgreensStorage/);
+  assert.match(server, /sasKeyToken/);
+  assert.match(server, /x-ms-blob-type/);
   assert.match(server, /submitWalgreensOrder/);
   assert.match(server, /pending_provider_credentials/);
   assert.match(printAgent, /Walgreens first/);
+  assert.doesNotMatch(`${readme}\n${envExample}`, /WALGREENS_API_KEY=[^\n]*\|/);
 });
 
 test('site includes expandable passport photo requirement cards', () => {
@@ -333,6 +347,8 @@ test('browser keeps the OpenAI key on the server and requests agent help in the 
   assert.doesNotMatch(js, /AI suggested photo needs/);
   assert.match(js, /fetch\('\/api\/photo\/analyze'/);
   assert.match(js, /fetch\('\/api\/photo\/background'/);
+  assert.match(js, /imageDataUrl:\s*await buildAdjustedPhotoDataUrl\(\)/);
+  assert.match(js, /await buildAdjustedPhotoDataUrl\(\{ forceLighting: true \}\)/);
   assert.match(js, /setVariant\('ai', suggestion\.variants\?\.aiSuggestedDataUrl \|\| ''\)/);
   assert.match(js, /setVariantError/);
   assert.match(js, /suggestion\.variantErrors/);

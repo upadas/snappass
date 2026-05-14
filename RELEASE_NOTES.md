@@ -4,6 +4,14 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-13
 
+### `2cd7196` - Add adjusted previews and Walgreens sandbox upload
+
+- Zoom now supports up to 250% while still warning when the crop moves outside the passport guide.
+- AI analysis, AI suggestions, white-background cleanup, and bottom preview cards now use the user-adjusted photo position instead of a separate raw upload view.
+- Added Walgreens sandbox upload-credential support through `https://services-qa.walgreens.com/api/photo/creds/v3`, then uploads the generated 4x6 sheet to the returned storage URL when credentials are configured.
+- Documented the sandbox environment variables while keeping the Walgreens API key out of source.
+- Verification: `node --check app.js`, `node --check server.js`, and `npm test`.
+
 ### `cdc2292` - Surface AI edit failures and avoid initial crop
 
 - Uploaded photos now start contained inside the preview slot instead of being cropped on first load.

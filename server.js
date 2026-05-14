@@ -12,6 +12,16 @@ const walgreensApiKey = process.env.WALGREENS_API_KEY || '';
 const walgreensOrderEndpoint = process.env.WALGREENS_ORDER_ENDPOINT || '';
 const walgreensAffiliateId = process.env.WALGREENS_AFFILIATE_ID || '';
 const walgreensProductId = process.env.WALGREENS_4X6_PRODUCT_ID || '4x6-print';
+const walgreensEnvironment = process.env.WALGREENS_ENVIRONMENT || 'sandbox';
+const walgreensCredsEndpoint = process.env.WALGREENS_CREDS_ENDPOINT || (
+  walgreensEnvironment === 'production'
+    ? 'https://services.walgreens.com/api/photo/creds/v3'
+    : 'https://services-qa.walgreens.com/api/photo/creds/v3'
+);
+const walgreensPlatform = process.env.WALGREENS_PLATFORM || 'web';
+const walgreensTransaction = process.env.WALGREENS_TRANSACTION || 'photocheckoutv2';
+const walgreensAppVersion = process.env.WALGREENS_APP_VERSION || '1.0';
+const walgreensDeviceInfo = process.env.WALGREENS_DEVICE_INFO || 'WEB,1.0';
 const supportAlertWebhookUrl = process.env.SUPPORT_ALERT_WEBHOOK_URL || '';
 const supportAlertEmail = process.env.SUPPORT_ALERT_EMAIL || '';
 const maxJsonBytes = 12 * 1024 * 1024;
@@ -272,18 +282,22 @@ const providerList = () => ([
   {
     id: 'walgreens',
     name: 'Walgreens',
-    status: walgreensApiKey && walgreensOrderEndpoint ? 'configured' : 'credentials-needed',
+    status: walgreensApiKey && walgreensAffiliateId
+      ? (walgreensOrderEndpoint ? 'configured' : 'sandbox-upload-ready')
+      : 'credentials-needed',
     product: '4x6 photo print',
     pickup: 'Same-day pickup when the store supports the selected product.',
     notes: [
       'Requires approved Walgreens Photo Prints API access.',
-      'SnapPass sends the final printable 4x6 sheet from the server.',
-      'A public or signed image URL is required before real provider submission.'
+      'SnapPass fetches sandbox upload credentials server-side and uploads the final printable 4x6 sheet.',
+      'A full approved order endpoint is required before real pickup checkout submission.'
     ],
     requiredEnv: [
       'WALGREENS_API_KEY',
-      'WALGREENS_ORDER_ENDPOINT',
+      'WALGREENS_ENVIRONMENT',
+      'WALGREENS_CREDS_ENDPOINT',
       'WALGREENS_AFFILIATE_ID',
+      'WALGREENS_ORDER_ENDPOINT',
       'WALGREENS_4X6_PRODUCT_ID'
     ]
   }
@@ -299,6 +313,96 @@ const handlePrintProviders = (request, response) => {
       ? 'Walgreens pickup is first in the provider queue. Store search activates after provider credentials are configured.'
       : 'Enter a ZIP code to prepare a Walgreens pickup handoff.'
   });
+};
+
+const parseDataUrl = (dataUrl = '') => {
+  const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error('image.dataUrl must be a base64 data URL');
+  }
+
+  return {
+    mimeType: match[1],
+    buffer: Buffer.from(match[2], 'base64')
+  };
+};
+
+const fetchWalgreensUploadCredentials = async () => {
+  if (!walgreensApiKey || !walgreensAffiliateId) {
+    throw new Error('WALGREENS_API_KEY and WALGREENS_AFFILIATE_ID are required for Walgreens upload credentials.');
+  }
+
+  const response = await fetch(walgreensCredsEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      apiKey: walgreensApiKey,
+      affId: walgreensAffiliateId,
+      platform: walgreensPlatform,
+      transaction: walgreensTransaction,
+      appVer: walgreensAppVersion,
+      devInf: walgreensDeviceInfo
+    })
+  });
+
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!response.ok) {
+    throw new Error(`Walgreens upload credentials failed: ${response.status}`);
+  }
+
+  const sasKeyToken = data?.cloud?.[0]?.sasKeyToken;
+  if (!sasKeyToken) {
+    throw new Error('Walgreens upload credentials did not include cloud[0].sasKeyToken.');
+  }
+
+  return {
+    uploadLimit: data.uploadLimit,
+    template: data.template,
+    landingUrl: data.landingUrl,
+    sasKeyToken
+  };
+};
+
+const buildWalgreensUploadUrl = (sasKeyToken, filename) => {
+  const url = new URL(sasKeyToken);
+  const cleanName = filename.replace(/[^a-z0-9._-]/gi, '-');
+  if (!path.extname(url.pathname)) {
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/${cleanName}`;
+  }
+  return url.toString();
+};
+
+const uploadImageToWalgreensStorage = async ({ orderId, image }) => {
+  const credentials = await fetchWalgreensUploadCredentials();
+  const { mimeType, buffer } = parseDataUrl(image.dataUrl);
+  const extension = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+  const uploadUrl = buildWalgreensUploadUrl(credentials.sasKeyToken, `${orderId}.${extension}`);
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': mimeType,
+      'Content-Length': String(buffer.length),
+      'x-ms-blob-type': 'BlockBlob'
+    },
+    body: buffer
+  });
+
+  if (!response.ok) {
+    throw new Error(`Walgreens image upload failed: ${response.status}`);
+  }
+
+  return {
+    uploadUrl,
+    landingUrl: credentials.landingUrl,
+    uploadLimit: credentials.uploadLimit
+  };
 };
 
 const buildWalgreensOrderPayload = ({ orderId, body }) => ({
@@ -391,28 +495,74 @@ const handlePrintOrder = async (request, response) => {
       }
     };
 
-    if (!walgreensApiKey || !walgreensOrderEndpoint) {
+    if (!walgreensApiKey || !walgreensAffiliateId) {
       printOrders.set(orderId, order);
       sendJson(response, 202, {
         ...order,
-        message: 'Walgreens order intent saved. Add Walgreens API credentials and endpoint to submit real pickup orders.',
-        nextStep: 'Configure WALGREENS_API_KEY and WALGREENS_ORDER_ENDPOINT on the server.'
+        message: 'Walgreens order intent saved. Add Walgreens API key and affiliate id to fetch sandbox upload credentials.',
+        nextStep: 'Configure WALGREENS_API_KEY and WALGREENS_AFFILIATE_ID on the server.'
       });
       return;
     }
 
-    if (!body.image?.url) {
+    let providerImage = body.image || {};
+    if (!providerImage.url && providerImage.dataUrl) {
+      try {
+        const uploadResult = await uploadImageToWalgreensStorage({ orderId, image: providerImage });
+        providerImage = {
+          ...providerImage,
+          url: uploadResult.uploadUrl
+        };
+        order.walgreensUpload = {
+          status: 'uploaded',
+          landingUrl: uploadResult.landingUrl,
+          uploadLimit: uploadResult.uploadLimit
+        };
+      } catch (error) {
+        const alertId = recordSupportAlert('walgreens_image_upload_failed', {
+          orderId,
+          error: summarizeError(error)
+        });
+        order.status = 'pending_walgreens_upload';
+        order.alertId = alertId;
+        printOrders.set(orderId, order);
+        sendJson(response, 202, {
+          ...order,
+          message: `Walgreens sandbox upload failed before checkout handoff. Support alert ${alertId} recorded.`,
+          nextStep: 'Verify WALGREENS_API_KEY, WALGREENS_AFFILIATE_ID, and sandbox credentials access.'
+        });
+        return;
+      }
+    }
+
+    if (!providerImage.url) {
       order.status = 'pending_public_image_url';
       printOrders.set(orderId, order);
       sendJson(response, 202, {
         ...order,
-        message: 'Walgreens credentials are configured, but real submission needs a public or signed 4x6 image URL.',
-        nextStep: 'Upload the generated 4x6 sheet to durable storage and send image.url for provider pickup.'
+        message: 'Walgreens sandbox credentials are configured, but submission needs a generated 4x6 image data URL or public image URL.',
+        nextStep: 'Send image.dataUrl from the generated 4x6 sheet or provide image.url for provider pickup.'
       });
       return;
     }
 
-    const providerResult = await submitWalgreensOrder({ orderId, body });
+    const orderBody = {
+      ...body,
+      image: providerImage
+    };
+
+    if (!walgreensOrderEndpoint) {
+      order.status = 'pending_walgreens_checkout';
+      printOrders.set(orderId, order);
+      sendJson(response, 202, {
+        ...order,
+        message: 'Walgreens sandbox upload is ready. Add the approved Walgreens order endpoint to submit pickup checkout.',
+        nextStep: 'Configure WALGREENS_ORDER_ENDPOINT after Walgreens approves the order submission contract.'
+      });
+      return;
+    }
+
+    const providerResult = await submitWalgreensOrder({ orderId, body: orderBody });
     order.status = 'submitted';
     order.providerOrderId = providerResult.providerOrderId;
     printOrders.set(orderId, order);

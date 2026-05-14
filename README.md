@@ -35,12 +35,18 @@ The browser posts a Walgreens order intent with ZIP/contact details and the gene
 
 ```bash
 WALGREENS_API_KEY=your_walgreens_key
-WALGREENS_ORDER_ENDPOINT=https://approved-walgreens-endpoint
+WALGREENS_ENVIRONMENT=sandbox
+WALGREENS_CREDS_ENDPOINT=https://services-qa.walgreens.com/api/photo/creds/v3
+WALGREENS_PLATFORM=web
+WALGREENS_TRANSACTION=photocheckoutv2
+WALGREENS_APP_VERSION=1.0
+WALGREENS_DEVICE_INFO=WEB,1.0
 WALGREENS_AFFILIATE_ID=your_affiliate_or_partner_id
+WALGREENS_ORDER_ENDPOINT=https://approved-walgreens-endpoint
 WALGREENS_4X6_PRODUCT_ID=4x6-print
 ```
 
-Until those are configured, `/api/print/orders` saves the intent and returns a clear `pending_provider_credentials` response. CVS can later plug into the same provider interface.
+For the first Walgreens phase, SnapPass fetches sandbox upload credentials from `https://services-qa.walgreens.com/api/photo/creds/v3` and uploads the generated 4x6 sheet to Walgreens storage with the returned `sasKeyToken`. Do not commit the Walgreens API key; set it only as a hosting environment variable. Until API key and affiliate id are configured, `/api/print/orders` saves the intent and returns a clear `pending_provider_credentials` response. Until the approved order endpoint is configured, successful sandbox uploads return `pending_walgreens_checkout`. CVS can later plug into the same provider interface.
 
 ## Run Locally
 

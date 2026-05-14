@@ -54,6 +54,8 @@ const cancelCameraButton = document.querySelector('#cancelCameraButton');
 const captureCameraButton = document.querySelector('#captureCameraButton');
 
 const DEFAULT_OUTPUT_SIZE = 600;
+const MIN_ZOOM = 80;
+const MAX_ZOOM = 250;
 const PRINT_SHEET_WIDTH = 1800;
 const PRINT_SHEET_HEIGHT = 1200;
 const PRINT_PREVIEW_WIDTH = 900;
@@ -98,6 +100,8 @@ let dragState = null;
 let phoneUploadSession = '';
 let phoneUploadPollTimer = null;
 let cameraStream = null;
+let adjustedPreviewTimer = null;
+let adjustedPreviewRefreshId = 0;
 let localImageFindings = {
   isHuman: true,
   warning: '',
@@ -763,7 +767,7 @@ const requestPhotoAnalysis = async (file) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        imageDataUrl: currentPhotoDataUrl,
+        imageDataUrl: await buildAdjustedPhotoDataUrl(),
         filename: file.name,
         country: country.value,
         documentType: documentType.value
@@ -797,7 +801,7 @@ const requestPhotoSuggestion = async (file) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        imageDataUrl: currentPhotoDataUrl,
+        imageDataUrl: await buildAdjustedPhotoDataUrl(),
         filename: file.name,
         country: country.value,
         documentType: documentType.value
@@ -821,7 +825,7 @@ const requestPhotoSuggestion = async (file) => {
     }
     await setVariant('ai', suggestion.variants?.aiSuggestedDataUrl || '');
     await setVariant('white', suggestion.variants?.whiteBackgroundDataUrl || '');
-    await setVariant('lighting', suggestion.variants?.lightingDataUrl || await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
+    await setVariant('lighting', suggestion.variants?.lightingDataUrl || await buildAdjustedPhotoDataUrl({ forceLighting: true }));
     if (!suggestion.variants?.aiSuggestedDataUrl && suggestion.variantErrors?.aiSuggested) {
       setVariantError('ai', suggestion.variantErrors.aiSuggested, 'AI edit failed');
     }
@@ -835,7 +839,7 @@ const requestPhotoSuggestion = async (file) => {
     if (requestId !== suggestionRequestId || !currentImageFile) {
       return;
     }
-    await setVariant('lighting', await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true }));
+    await setVariant('lighting', await buildAdjustedPhotoDataUrl({ forceLighting: true }));
     runAiAssessment(file);
     advisorSummary.textContent = 'AI suggested photo is unavailable, so SnapPass kept the original and offered a safe lighting preview.';
   }
@@ -873,6 +877,7 @@ const updatePreviewTransform = () => {
   photoFrame.style.setProperty('--preview-pan-y', `${previewPanY}%`);
   evaluateCropFit();
   renderPrintSheetPreview();
+  queueAdjustedVariantRefresh();
 };
 
 const loadImage = (src) => new Promise((resolve, reject) => {
@@ -923,6 +928,57 @@ const processPhotoDataUrl = async (sourceDataUrl, options = {}) => {
   return canvas.toDataURL('image/png');
 };
 
+const buildAdjustedPhotoDataUrl = async (options = {}) => {
+  if (!currentImageFile || !photoPreview.complete || !photoPreview.naturalWidth) {
+    return currentPhotoDataUrl;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = activeSpec.outputWidth || DEFAULT_OUTPUT_SIZE;
+  canvas.height = activeSpec.outputHeight || DEFAULT_OUTPUT_SIZE;
+  drawPhotoToCanvas(canvas, { width: canvas.width, height: canvas.height });
+  const adjustedDataUrl = canvas.toDataURL('image/png');
+  if (options.forceLighting) {
+    return processPhotoDataUrl(adjustedDataUrl, { forceLighting: true });
+  }
+  return adjustedDataUrl;
+};
+
+const refreshAdjustedVariantPreviews = async () => {
+  if (!currentImageFile || !currentPhotoDataUrl || !photoPreview.complete || !photoPreview.naturalWidth) {
+    return;
+  }
+
+  const requestId = ++adjustedPreviewRefreshId;
+  const adjustedDataUrl = await buildAdjustedPhotoDataUrl();
+  if (requestId !== adjustedPreviewRefreshId || !currentImageFile) {
+    return;
+  }
+
+  variantOriginalPreview.src = adjustedDataUrl;
+  variantOriginalPreview.alt = 'Adjusted original passport photo preview';
+
+  if (!currentAiFindings.retakeRequired && !variantCards.find((item) => item.dataset.variant === 'lighting')?.disabled) {
+    const lightingDataUrl = await buildAdjustedPhotoDataUrl({ forceLighting: true });
+    if (requestId !== adjustedPreviewRefreshId || !currentImageFile) {
+      return;
+    }
+    variantLightingPreview.src = lightingDataUrl;
+    variantLightingPreview.alt = 'Lighting enhanced adjusted passport photo preview';
+  }
+};
+
+const queueAdjustedVariantRefresh = () => {
+  if (!currentImageFile || !currentPhotoDataUrl) {
+    return;
+  }
+
+  window.clearTimeout(adjustedPreviewTimer);
+  adjustedPreviewTimer = window.setTimeout(() => {
+    refreshAdjustedVariantPreviews();
+  }, 100);
+};
+
 const applyClientPhotoProcessing = async () => {
   if (!currentPhotoDataUrl) {
     return;
@@ -963,7 +1019,7 @@ const requestBackgroundEdit = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        imageDataUrl: currentPhotoDataUrl,
+        imageDataUrl: await buildAdjustedPhotoDataUrl(),
         mode: selectedBackgroundMode,
         country: country.value,
         documentType: documentType.value
@@ -1186,6 +1242,7 @@ const resetState = () => {
   backgroundRequestId += 1;
   processingRequestId += 1;
   suggestionRequestId += 1;
+  adjustedPreviewRefreshId += 1;
   currentAiFindings = {
     hasHumanWarning: false,
     hasHeadIssue: false,
@@ -1199,6 +1256,8 @@ const resetState = () => {
   previewPanX = 0;
   previewPanY = 0;
   dragState = null;
+  window.clearTimeout(adjustedPreviewTimer);
+  adjustedPreviewTimer = null;
   stopPhoneUploadPolling();
   closeCameraModal();
   localImageFindings = {
@@ -1652,7 +1711,7 @@ photoStage.addEventListener('drop', (event) => {
 });
 
 applySuggestionButton.addEventListener('click', () => {
-  zoomRange.value = String(Math.min(140, Math.max(80, currentAiFindings.recommendedZoom || 100)));
+  zoomRange.value = String(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentAiFindings.recommendedZoom || 100)));
   rotateRange.value = String(Math.min(8, Math.max(-8, currentAiFindings.recommendedRotation || 0)));
   previewPanX = 0;
   previewPanY = 0;

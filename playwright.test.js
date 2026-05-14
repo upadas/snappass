@@ -110,6 +110,7 @@ const run = async () => {
       watermark: document.querySelector('#photoStage').textContent,
       dropZoneRole: document.querySelector('#photoStage').getAttribute('role'),
       phoneButton: document.querySelector('#phoneUploadButton').textContent.trim(),
+      zoomMax: document.querySelector('#zoomRange').max,
       requirement: document.querySelector('#requirementSummary').textContent.trim(),
       specStrip: document.querySelector('.spec-strip').textContent,
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1
@@ -121,6 +122,7 @@ const run = async () => {
     assert.match(initial.watermark, /drop photo/);
     assert.equal(initial.dropZoneRole, 'button');
     assert.equal(initial.phoneButton, 'Scan QR from phone');
+    assert.equal(initial.zoomMax, '250');
     assert.match(initial.requirement, /600 x 600 px minimum/);
     assert.match(initial.requirement, /50-69%/);
     assert.match(initial.requirement, /56-69%/);
@@ -389,6 +391,19 @@ const run = async () => {
     assert.equal(cropWarning.status, 'Fix crop');
     assert.equal(cropWarning.danger, true);
     assert.equal(cropWarning.headText, 'Headshot out of range');
+
+    await page.locator('#zoomRange').evaluate((element) => {
+      element.value = '250';
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const maxZoomWarning = await page.evaluate(() => ({
+      zoom: document.querySelector('#zoomRange').value,
+      status: document.querySelector('#statusPill').textContent.trim(),
+      danger: document.querySelector('#statusPill').classList.contains('is-danger')
+    }));
+    assert.equal(maxZoomWarning.zoom, '250');
+    assert.equal(maxZoomWarning.status, 'Fix crop');
+    assert.equal(maxZoomWarning.danger, true);
 
     const digitalDownload = await Promise.all([
       page.waitForEvent('download'),
