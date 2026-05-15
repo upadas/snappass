@@ -2,6 +2,17 @@
 
 Every pushed change should add a short entry here with the date, commit, user-facing change, and verification run.
 
+## 2026-05-14
+
+### `pending` - Sync crop adjustments into quality previews
+
+- Quality-check preview cards now use the same pan, zoom, and rotate crop variables as the main passport photo preview.
+- Dragging or slider changes in the uploader immediately move the original and lighting-enhanced quality images in the same pattern.
+- Increased high-zoom pan limits so users can align the head to the passport guide at up to 250% zoom.
+- Added safer production AI diagnostics to `/api/photo/agent-status`, including sanitized recent alert messages, variant errors, and Render commit id.
+- Documented how to check Render AI agent health without exposing API keys.
+- Verification: `node --check app.js`, `npm run test:source`, and `npm run test:browser`.
+
 ## 2026-05-13
 
 ### `5a21f4c` - Add adjusted previews and Walgreens sandbox upload

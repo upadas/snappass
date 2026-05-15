@@ -818,6 +818,7 @@ h1 {
   background: #fff;
   color: var(--color-ink);
   cursor: pointer;
+  overflow: hidden;
 }
 
 .variant-card.is-selected {
@@ -833,9 +834,12 @@ h1 {
 .variant-card img {
   width: 100%;
   aspect-ratio: 1 / 1;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 6px;
   background: #f4fbf7;
+  transform: translate(var(--preview-pan-x, 0%), var(--preview-pan-y, 0%)) scale(var(--preview-zoom, 1)) rotate(var(--preview-rotate, 0deg));
+  transition: transform 180ms ease;
+  will-change: transform;
 }
 
 .variant-card img:not([src]) {

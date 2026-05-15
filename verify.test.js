@@ -175,6 +175,9 @@ test('zoom and rotation update crop fit warnings', () => {
   assert.match(js, /buildAdjustedPhotoDataUrl/);
   assert.match(js, /queueAdjustedVariantRefresh/);
   assert.match(js, /refreshAdjustedVariantPreviews/);
+  assert.match(js, /getPreviewPanLimit/);
+  assert.match(js, /clampPreviewPan/);
+  assert.doesNotMatch(js, /Math\.min\(24, Math\.max\(-24/);
   assert.match(js, /setChecklistItem\('head'/);
   assert.match(js, /statusPill\.classList\.toggle\('is-danger'/);
   assert.match(js, /zoomRange\.addEventListener\('input', updatePreviewTransform\)/);
@@ -321,6 +324,11 @@ test('server exposes private AI photo agent endpoints', () => {
   assert.match(server, /handleAgentStatus/);
   assert.match(server, /SUPPORT_ALERT_WEBHOOK_URL/);
   assert.match(server, /recordSupportAlert/);
+  assert.match(server, /sanitizeAlertDetails/);
+  assert.match(server, /redactSecretText/);
+  assert.match(server, /renderCommit/);
+  assert.match(server, /variantErrors/);
+  assert.match(server, /message:\s*safeDetails\.message/);
   assert.match(server, /variantErrors/);
   assert.match(server, /aiConfigured/);
   assert.match(server, /docs', 'photo-specs/);
@@ -355,6 +363,7 @@ test('browser keeps the OpenAI key on the server and requests agent help in the 
   assert.doesNotMatch(js, /setVariant\('ai', suggestion\.variants\?\.aiSuggestedDataUrl \|\| suggestion\.variants\?\.whiteBackgroundDataUrl/);
   assert.match(js, /applySuggestionButton/);
   assert.match(js, /backgroundResultDataUrl/);
+  assert.match(js, /syncVariantPreviewTransform/);
   assert.match(js, /preview\.removeAttribute\('src'\)/);
   assert.match(css, /content:\s*attr\(data-empty-label\)/);
   assert.match(css, /\.variant-card img:not\(\[src\]\)/);

@@ -347,9 +347,19 @@ const run = async () => {
     ), beforeDragTransform);
     const afterDrag = await page.locator('#photoPreview').evaluate((element) => ({
       transform: getComputedStyle(element).transform,
-      status: document.querySelector('#statusPill').textContent.trim()
+      status: document.querySelector('#statusPill').textContent.trim(),
+      qualityOriginalTransform: getComputedStyle(document.querySelector('#variantOriginalPreview')).transform,
+      qualityLightingTransform: getComputedStyle(document.querySelector('#variantLightingPreview')).transform,
+      previewPanX: getComputedStyle(document.querySelector('#photoFrame')).getPropertyValue('--preview-pan-x').trim(),
+      previewPanY: getComputedStyle(document.querySelector('#photoFrame')).getPropertyValue('--preview-pan-y').trim(),
+      qualityPanX: getComputedStyle(document.querySelector('#variantPanel')).getPropertyValue('--preview-pan-x').trim(),
+      qualityPanY: getComputedStyle(document.querySelector('#variantPanel')).getPropertyValue('--preview-pan-y').trim()
     }));
     assert.notEqual(afterDrag.transform, beforeDragTransform);
+    assert.notEqual(afterDrag.qualityOriginalTransform, 'none');
+    assert.notEqual(afterDrag.qualityLightingTransform, 'none');
+    assert.equal(afterDrag.qualityPanX, afterDrag.previewPanX);
+    assert.equal(afterDrag.qualityPanY, afterDrag.previewPanY);
     assert.match(afterDrag.status, /Preview ready|Adjust crop|Fix crop/);
 
     await page.selectOption('#backgroundMode', 'replace-white');
@@ -402,8 +412,23 @@ const run = async () => {
       danger: document.querySelector('#statusPill').classList.contains('is-danger')
     }));
     assert.equal(maxZoomWarning.zoom, '250');
-    assert.equal(maxZoomWarning.status, 'Fix crop');
-    assert.equal(maxZoomWarning.danger, true);
+    assert.equal(maxZoomWarning.status, 'Adjust crop');
+    assert.equal(maxZoomWarning.danger, false);
+
+    const zoomFrameBox = await page.locator('#photoFrame').boundingBox();
+    await page.mouse.move(zoomFrameBox.x + zoomFrameBox.width / 2, zoomFrameBox.y + zoomFrameBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(zoomFrameBox.x + zoomFrameBox.width / 2, zoomFrameBox.y + zoomFrameBox.height / 2 + 190, { steps: 8 });
+    await page.mouse.up();
+    const dragState = await page.evaluate(() => {
+      const pan = parseFloat(getComputedStyle(document.querySelector('#photoFrame')).getPropertyValue('--preview-pan-y'));
+      return {
+        pan,
+        warning: document.querySelector('#statusPill').textContent.trim()
+      };
+    });
+    assert.ok(Math.abs(dragState.pan) > 24);
+    assert.equal(dragState.warning, 'Adjust crop');
 
     const digitalDownload = await Promise.all([
       page.waitForEvent('download'),

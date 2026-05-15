@@ -88,6 +88,36 @@ const summarizeError = (error) => {
   return message.replace(/\s+/g, ' ').slice(0, 220);
 };
 
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const redactSecretText = (value) => {
+  let text = String(value || '')
+    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted-openai-key]')
+    .replace(/github_pat_[A-Za-z0-9_]+/g, '[redacted-github-token]');
+
+  if (openAiApiKey) {
+    text = text.replace(new RegExp(escapeRegExp(openAiApiKey), 'g'), '[redacted-openai-key]');
+  }
+  if (walgreensApiKey) {
+    text = text.replace(new RegExp(escapeRegExp(walgreensApiKey), 'g'), '[redacted-walgreens-key]');
+  }
+
+  return text;
+};
+
+const sanitizeAlertDetails = (details = {}) => {
+  const variantErrors = details.variantErrors && typeof details.variantErrors === 'object'
+    ? Object.fromEntries(Object.entries(details.variantErrors).map(([key, value]) => [key, summarizeError(redactSecretText(value))]))
+    : undefined;
+  const message = details.error || details.message || (variantErrors ? Object.values(variantErrors).filter(Boolean).join(' | ') : '');
+
+  return {
+    message: summarizeError(redactSecretText(message)),
+    variantErrors,
+    status: details.status || undefined
+  };
+};
+
 const recordSupportAlert = (type, details = {}) => {
   const alert = {
     id: makeAlertId(),
@@ -252,12 +282,18 @@ const handleAgentStatus = (response) => {
     aiConfigured: Boolean(openAiApiKey),
     analysisModel: openAiModel,
     imageModel: openAiImageModel,
+    renderCommit: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || null,
     supportAlertsConfigured: Boolean(supportAlertWebhookUrl || supportAlertEmail),
-    recentAlerts: supportAlerts.slice(0, 5).map((alert) => ({
-      id: alert.id,
-      type: alert.type,
-      createdAt: alert.createdAt
-    })),
+    recentAlerts: supportAlerts.slice(0, 5).map((alert) => {
+      const safeDetails = sanitizeAlertDetails(alert.details);
+      return {
+        id: alert.id,
+        type: alert.type,
+        createdAt: alert.createdAt,
+        message: safeDetails.message,
+        variantErrors: safeDetails.variantErrors
+      };
+    }),
     specCount: specFiles.length,
     endpoints: [
       '/api/photo/analyze',

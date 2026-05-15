@@ -869,15 +869,26 @@ const updateRequirementSummary = () => {
 const updatePreviewTransform = () => {
   const zoom = Number(zoomRange.value);
   const rotate = Number(rotateRange.value);
+  clampPreviewPan();
   zoomValue.textContent = `${zoom}%`;
   rotateValue.textContent = `${rotate}°`;
   photoFrame.style.setProperty('--preview-zoom', String(zoom / 100));
   photoFrame.style.setProperty('--preview-rotate', `${rotate}deg`);
   photoFrame.style.setProperty('--preview-pan-x', `${previewPanX}%`);
   photoFrame.style.setProperty('--preview-pan-y', `${previewPanY}%`);
+  syncVariantPreviewTransform();
   evaluateCropFit();
   renderPrintSheetPreview();
   queueAdjustedVariantRefresh();
+};
+
+const syncVariantPreviewTransform = () => {
+  const zoom = Number(zoomRange.value) / 100;
+  const rotate = Number(rotateRange.value);
+  variantPanel.style.setProperty('--preview-zoom', String(zoom));
+  variantPanel.style.setProperty('--preview-rotate', `${rotate}deg`);
+  variantPanel.style.setProperty('--preview-pan-x', `${previewPanX}%`);
+  variantPanel.style.setProperty('--preview-pan-y', `${previewPanY}%`);
 };
 
 const loadImage = (src) => new Promise((resolve, reject) => {
@@ -888,6 +899,17 @@ const loadImage = (src) => new Promise((resolve, reject) => {
 });
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getPreviewPanLimit = () => {
+  const zoom = Number(zoomRange.value) || 100;
+  return Math.min(90, Math.max(24, 24 + Math.max(0, zoom - 100) * 0.44));
+};
+
+const clampPreviewPan = () => {
+  const panLimit = getPreviewPanLimit();
+  previewPanX = clamp(previewPanX, -panLimit, panLimit);
+  previewPanY = clamp(previewPanY, -panLimit, panLimit);
+};
 
 const processPhotoDataUrl = async (sourceDataUrl, options = {}) => {
   const shouldEnhanceLighting = options.forceLighting || lightingMode.value === 'auto-enhance';
@@ -950,16 +972,12 @@ const refreshAdjustedVariantPreviews = async () => {
   }
 
   const requestId = ++adjustedPreviewRefreshId;
-  const adjustedDataUrl = await buildAdjustedPhotoDataUrl();
-  if (requestId !== adjustedPreviewRefreshId || !currentImageFile) {
-    return;
-  }
-
-  variantOriginalPreview.src = adjustedDataUrl;
+  syncVariantPreviewTransform();
+  variantOriginalPreview.src = currentPhotoDataUrl;
   variantOriginalPreview.alt = 'Adjusted original passport photo preview';
 
   if (!currentAiFindings.retakeRequired && !variantCards.find((item) => item.dataset.variant === 'lighting')?.disabled) {
-    const lightingDataUrl = await buildAdjustedPhotoDataUrl({ forceLighting: true });
+    const lightingDataUrl = await processPhotoDataUrl(currentPhotoDataUrl, { forceLighting: true });
     if (requestId !== adjustedPreviewRefreshId || !currentImageFile) {
       return;
     }
@@ -1136,8 +1154,10 @@ const evaluateCropFit = () => {
   const zoom = Number(zoomRange.value);
   const rotate = Math.abs(Number(rotateRange.value));
   const pan = Math.max(Math.abs(previewPanX), Math.abs(previewPanY));
-  const isDanger = zoom < 84 || zoom > 138 || rotate > 7 || pan > 24;
-  const isWarning = !isDanger && (zoom < 90 || zoom > 128 || rotate > 4 || pan > 18);
+  const panLimit = getPreviewPanLimit();
+  const panRatio = panLimit ? pan / panLimit : 0;
+  const isDanger = zoom < 84 || rotate > 7 || panRatio > 0.98;
+  const isWarning = !isDanger && (zoom < 90 || zoom > 210 || rotate > 4 || panRatio > 0.84);
 
   statusPill.classList.toggle('is-danger', isDanger);
   statusPill.classList.toggle('is-warning', isWarning && !isDanger);
@@ -1746,8 +1766,9 @@ photoFrame.addEventListener('pointermove', (event) => {
   dragState.hasMoved = dragState.hasMoved || movement > 5;
   const nextPanX = dragState.panX + ((event.clientX - dragState.startX) / bounds.width) * 100;
   const nextPanY = dragState.panY + ((event.clientY - dragState.startY) / bounds.height) * 100;
-  previewPanX = Math.min(24, Math.max(-24, nextPanX));
-  previewPanY = Math.min(24, Math.max(-24, nextPanY));
+  const panLimit = getPreviewPanLimit();
+  previewPanX = clamp(nextPanX, -panLimit, panLimit);
+  previewPanY = clamp(nextPanY, -panLimit, panLimit);
   updatePreviewTransform();
 });
 
