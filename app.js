@@ -872,6 +872,7 @@ const updatePreviewTransform = () => {
   clampPreviewPan();
   zoomValue.textContent = `${zoom}%`;
   rotateValue.textContent = `${rotate}°`;
+  syncPassportBackgroundColor();
   photoFrame.style.setProperty('--preview-zoom', String(zoom / 100));
   photoFrame.style.setProperty('--preview-rotate', `${rotate}deg`);
   photoFrame.style.setProperty('--preview-pan-x', `${previewPanX}%`);
@@ -889,6 +890,17 @@ const syncVariantPreviewTransform = () => {
   variantPanel.style.setProperty('--preview-rotate', `${rotate}deg`);
   variantPanel.style.setProperty('--preview-pan-x', `${previewPanX}%`);
   variantPanel.style.setProperty('--preview-pan-y', `${previewPanY}%`);
+};
+
+const getPassportBackgroundColor = () => (
+  selectedBackgroundMode === 'ai-cleanup' ? '#fbfaf4' : '#ffffff'
+);
+
+const syncPassportBackgroundColor = () => {
+  const backgroundColor = getPassportBackgroundColor();
+  photoFrame.style.setProperty('--passport-slot-bg', backgroundColor);
+  variantPanel.style.setProperty('--passport-slot-bg', backgroundColor);
+  printPreviewPanel.style.setProperty('--passport-slot-bg', backgroundColor);
 };
 
 const loadImage = (src) => new Promise((resolve, reject) => {
@@ -1445,7 +1457,7 @@ const openPhoneUploadModal = () => {
 };
 
 const fillCanvasBackground = (context, canvas) => {
-  context.fillStyle = selectedBackgroundMode === 'ai-cleanup' ? '#fbfaf4' : '#ffffff';
+  context.fillStyle = getPassportBackgroundColor();
   context.fillRect(0, 0, canvas.width, canvas.height);
 };
 

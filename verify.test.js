@@ -205,14 +205,18 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(js, /processPhotoDataUrl/);
   assert.match(js, /selectedBackgroundMode/);
   assert.match(js, /fillCanvasBackground/);
+  assert.match(js, /getPassportBackgroundColor/);
+  assert.match(js, /syncPassportBackgroundColor/);
   assert.match(js, /OPENAI_API_KEY|backgroundResultDataUrl/);
   assert.match(js, /backgroundPlain/);
   assert.match(js, /lightingEven/);
   assert.doesNotMatch(js, /looksLikeBackground/);
   assert.doesNotMatch(js, /drawMaskedSubject/);
   assert.doesNotMatch(css, /subject-mask img/);
+  assert.match(css, /--passport-slot-bg/);
   assert.match(playwrightTest, /backgroundMode/);
   assert.match(playwrightTest, /replace-white/);
+  assert.match(playwrightTest, /qualityOriginalBackground/);
   assert.match(playwrightTest, /destructiveMask/);
 });
 

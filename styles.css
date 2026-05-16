@@ -423,7 +423,7 @@ h1 {
   overflow: hidden;
   border: 1px solid #b8cbc3;
   border-radius: 4px;
-  background: #fff;
+  background: var(--passport-slot-bg, #fff);
   box-shadow: 0 18px 28px rgba(31, 54, 46, 0.14);
   cursor: grab;
   touch-action: none;
@@ -836,7 +836,7 @@ h1 {
   aspect-ratio: 1 / 1;
   object-fit: contain;
   border-radius: 6px;
-  background: #f4fbf7;
+  background: var(--passport-slot-bg, #fff);
   transform: translate(var(--preview-pan-x, 0%), var(--preview-pan-y, 0%)) scale(var(--preview-zoom, 1)) rotate(var(--preview-rotate, 0deg));
   transition: transform 180ms ease;
   will-change: transform;

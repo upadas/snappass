@@ -2,9 +2,18 @@
 
 Every pushed change should add a short entry here with the date, commit, user-facing change, and verification run.
 
+## 2026-05-16
+
+### `pending` - Fill preview gaps with compliant background
+
+- Preview gaps from contained, zoomed-out, or panned photos now use the same compliant passport-slot background as exports.
+- Quality-check preview cards now match the live preview background, so empty margins do not show a different tint.
+- Canvas exports continue to paint the same selected compliant background before drawing the adjusted photo.
+- Verification: `node --check app.js`, `npm run test:source`, and `npm run test:browser`.
+
 ## 2026-05-14
 
-### `pending` - Sync crop adjustments into quality previews
+### `9f9dc55` - Sync crop adjustments into quality previews
 
 - Quality-check preview cards now use the same pan, zoom, and rotate crop variables as the main passport photo preview.
 - Dragging or slider changes in the uploader immediately move the original and lighting-enhanced quality images in the same pattern.

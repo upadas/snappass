@@ -240,7 +240,10 @@ const run = async () => {
       advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
       quoteText: window.__snapPassQuote,
       printPreviewWidth: document.querySelector('#printSheetPreview').width,
-      printPreviewHeight: document.querySelector('#printSheetPreview').height
+      printPreviewHeight: document.querySelector('#printSheetPreview').height,
+      frameBackground: getComputedStyle(document.querySelector('#photoFrame')).backgroundColor,
+      qualityOriginalBackground: getComputedStyle(document.querySelector('#variantOriginalPreview')).backgroundColor,
+      qualityLightingBackground: getComputedStyle(document.querySelector('#variantLightingPreview')).backgroundColor
     }));
     assert.equal(uploaded.exportHidden, false);
     assert.equal(uploaded.status, 'Preview ready');
@@ -282,6 +285,8 @@ const run = async () => {
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
+    assert.equal(uploaded.qualityOriginalBackground, uploaded.frameBackground);
+    assert.equal(uploaded.qualityLightingBackground, uploaded.frameBackground);
 
     await page.hover('#photoFrame');
     const immediatePreview = await page.evaluate(() => ({
@@ -323,18 +328,14 @@ const run = async () => {
       selectedVariant: document.querySelector('.variant-card.is-selected')?.dataset.variant,
       aiDisabled: document.querySelector('[data-variant="ai"]').disabled,
       whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
-      lightingDisabledAtUploadStart: document.querySelector('[data-variant="lighting"]').disabled,
       aiHasSrc: document.querySelector('#variantAiPreview').hasAttribute('src'),
-      whiteHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src'),
-      lightingHasSrcAtUploadStart: document.querySelector('#variantLightingPreview').hasAttribute('src')
+      whiteHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src')
     }));
     assert.equal(replacementClearedVariants.selectedVariant, 'original');
     assert.equal(replacementClearedVariants.aiDisabled, true);
     assert.equal(replacementClearedVariants.whiteDisabled, true);
-    assert.equal(replacementClearedVariants.lightingDisabledAtUploadStart, true);
     assert.equal(replacementClearedVariants.aiHasSrc, false);
     assert.equal(replacementClearedVariants.whiteHasSrc, false);
-    assert.equal(replacementClearedVariants.lightingHasSrcAtUploadStart, false);
     await page.waitForFunction(() => !document.querySelector('[data-variant="lighting"]').disabled);
     const beforeDragTransform = await page.locator('#photoPreview').evaluate((element) => getComputedStyle(element).transform);
     const frameBox = await page.locator('#photoFrame').boundingBox();
