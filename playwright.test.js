@@ -364,20 +364,24 @@ const run = async () => {
     assert.match(afterDrag.status, /Preview ready|Adjust crop|Fix crop/);
 
     await page.selectOption('#backgroundMode', 'replace-white');
-    await page.waitForFunction(() => document.querySelector('#backgroundNote').textContent.includes('not configured') || document.querySelector('#backgroundNote').textContent.includes('unchanged'));
+    await page.waitForFunction(() => /Local background preview|AI background cleanup applied|support alert/i.test(document.querySelector('#backgroundNote').textContent));
     const backgroundState = await page.evaluate(() => ({
       mode: document.querySelector('#backgroundMode').value,
       whitePreview: document.querySelector('#photoFrame').classList.contains('background-white'),
       destructiveMask: document.querySelector('#photoFrame').classList.contains('subject-mask'),
       backgroundText: document.querySelector('[data-check="background"]').textContent.trim(),
-      backgroundNote: document.querySelector('#backgroundNote').textContent.trim()
+      backgroundNote: document.querySelector('#backgroundNote').textContent.trim(),
+      whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
+      whiteHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src')
     }));
     assert.equal(backgroundState.mode, 'replace-white');
     assert.equal(backgroundState.whitePreview, true);
     assert.equal(backgroundState.destructiveMask, false);
     assert.match(backgroundState.backgroundText, /AI background pending|Background needs review|Background: plain white/);
-    assert.match(backgroundState.backgroundNote, /not configured|unchanged/);
+    assert.match(backgroundState.backgroundNote, /Local background preview|AI background cleanup applied|support alert/i);
     assert.doesNotMatch(backgroundState.backgroundNote, /OPENAI_API_KEY/);
+    assert.equal(backgroundState.whiteDisabled, false);
+    assert.equal(backgroundState.whiteHasSrc, true);
 
     await page.selectOption('#lightingMode', 'auto-enhance');
     await page.waitForFunction(() => document.querySelector('[data-check="lighting"]').textContent.includes('Lighting enhanced'));
@@ -627,13 +631,15 @@ const run = async () => {
       whiteLabel: document.querySelector('[data-variant="white"]').dataset.emptyLabel,
       aiDisabled: document.querySelector('[data-variant="ai"]').disabled,
       whiteDisabled: document.querySelector('[data-variant="white"]').disabled,
+      whiteHasSrc: document.querySelector('#variantWhitePreview').hasAttribute('src'),
       lightingDisabled: document.querySelector('[data-variant="lighting"]').disabled
     }));
-    assert.match(editFailureState.advisorSummary, /support alert photo_abc123|Background editing failed/);
+    assert.match(editFailureState.advisorSummary, /support alert photo_abc123|Background editing failed|local background preview/i);
     assert.match(editFailureState.aiLabel, /AI edit failed/);
-    assert.match(editFailureState.whiteLabel, /White edit failed/);
+    assert.equal(editFailureState.whiteLabel, 'Not ready');
     assert.equal(editFailureState.aiDisabled, true);
-    assert.equal(editFailureState.whiteDisabled, true);
+    assert.equal(editFailureState.whiteDisabled, false);
+    assert.equal(editFailureState.whiteHasSrc, true);
     assert.equal(editFailureState.lightingDisabled, false);
     await editFailurePage.close();
 

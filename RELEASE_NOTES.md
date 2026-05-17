@@ -4,7 +4,15 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-16
 
-### `pending` - Fill preview gaps with compliant background
+### `pending` - Add remove-background fallback
+
+- Added a **Remove background** mode beside strict white replacement and AI cleanup.
+- When OpenAI image edits fail or are rate-limited, SnapPass now builds a local white/off-white background preview instead of leaving the white variant broken.
+- The local fallback protects the central portrait area and fills connected edge background regions, while the final export still fills any exposed slot gaps with the selected compliant background.
+- Server-side OpenAI analysis failures now include rate-limit/quota details in support alerts.
+- Verification: `node --check app.js`, `node --check server.js`, `npm run test:source`, and `npm run test:browser`.
+
+### `cf8c8a9` - Fill preview gaps with compliant background
 
 - Preview gaps from contained, zoomed-out, or panned photos now use the same compliant passport-slot background as exports.
 - Quality-check preview cards now match the live preview background, so empty margins do not show a different tint.

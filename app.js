@@ -830,7 +830,12 @@ const requestPhotoSuggestion = async (file) => {
       setVariantError('ai', suggestion.variantErrors.aiSuggested, 'AI edit failed');
     }
     if (!suggestion.variants?.whiteBackgroundDataUrl && suggestion.variantErrors?.whiteBackground) {
-      setVariantError('white', suggestion.variantErrors.whiteBackground, 'White edit failed');
+      try {
+        await setVariant('white', await buildLocalBackgroundRemovalDataUrl({ backgroundColor: '#ffffff' }));
+        advisorSummary.textContent = `${suggestion.message || 'AI background editing failed.'} A local background preview is available for the white-background option.`;
+      } catch {
+        setVariantError('white', suggestion.variantErrors.whiteBackground, 'White edit failed');
+      }
     }
     if (analysis.isHuman !== false && suggestion.message && suggestion.mode !== 'server fallback') {
       advisorSummary.textContent = suggestion.message;
@@ -895,6 +900,155 @@ const syncVariantPreviewTransform = () => {
 const getPassportBackgroundColor = () => (
   selectedBackgroundMode === 'ai-cleanup' ? '#fbfaf4' : '#ffffff'
 );
+
+const hexToRgb = (hexColor) => {
+  const clean = hexColor.replace('#', '');
+  const value = parseInt(clean.length === 3
+    ? clean.split('').map((part) => part + part).join('')
+    : clean, 16);
+  return {
+    red: (value >> 16) & 255,
+    green: (value >> 8) & 255,
+    blue: value & 255
+  };
+};
+
+const colorDistance = (a, b) => Math.sqrt(
+  ((a.red - b.red) ** 2) +
+  ((a.green - b.green) ** 2) +
+  ((a.blue - b.blue) ** 2)
+);
+
+const isProtectedPortraitPixel = (x, y, width, height) => {
+  const nx = x / width;
+  const ny = y / height;
+  const headDx = (nx - 0.5) / 0.28;
+  const headDy = (ny - 0.38) / 0.32;
+  const torsoDx = (nx - 0.5) / 0.48;
+  const torsoDy = (ny - 0.78) / 0.32;
+  const centralColumn = nx > 0.28 && nx < 0.72 && ny > 0.16 && ny < 0.94;
+
+  return (
+    (headDx * headDx) + (headDy * headDy) < 1 ||
+    (torsoDx * torsoDx) + (torsoDy * torsoDy) < 1 ||
+    centralColumn
+  );
+};
+
+const buildLocalBackgroundRemovalDataUrl = async (options = {}) => {
+  const sourceDataUrl = options.sourceDataUrl || currentPhotoDataUrl;
+  if (!sourceDataUrl) {
+    return '';
+  }
+
+  const image = await loadImage(sourceDataUrl);
+  const sourceWidth = image.naturalWidth || image.width || DEFAULT_OUTPUT_SIZE;
+  const sourceHeight = image.naturalHeight || image.height || DEFAULT_OUTPUT_SIZE;
+  const maxSide = Math.max(sourceWidth, sourceHeight);
+  const scale = maxSide > 1200 ? 1200 / maxSide : 1;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+  const edgeSample = { red: 0, green: 0, blue: 0, count: 0 };
+  const samplePixel = (x, y) => {
+    const index = (y * canvas.width + x) * 4;
+    edgeSample.red += pixels[index];
+    edgeSample.green += pixels[index + 1];
+    edgeSample.blue += pixels[index + 2];
+    edgeSample.count += 1;
+  };
+
+  const step = Math.max(1, Math.round(Math.min(canvas.width, canvas.height) / 90));
+  for (let x = 0; x < canvas.width; x += step) {
+    samplePixel(x, 0);
+    samplePixel(x, canvas.height - 1);
+  }
+  for (let y = 0; y < canvas.height; y += step) {
+    samplePixel(0, y);
+    samplePixel(canvas.width - 1, y);
+  }
+
+  const edgeColor = {
+    red: edgeSample.red / edgeSample.count,
+    green: edgeSample.green / edgeSample.count,
+    blue: edgeSample.blue / edgeSample.count
+  };
+  const fillColor = hexToRgb(options.backgroundColor || getPassportBackgroundColor());
+  const visited = new Uint8Array(canvas.width * canvas.height);
+  const queue = [];
+
+  const isLikelyBackgroundPixel = (x, y) => {
+    if (isProtectedPortraitPixel(x, y, canvas.width, canvas.height)) {
+      return false;
+    }
+
+    const index = (y * canvas.width + x) * 4;
+    const pixel = {
+      red: pixels[index],
+      green: pixels[index + 1],
+      blue: pixels[index + 2]
+    };
+    const brightness = (pixel.red + pixel.green + pixel.blue) / 3;
+    const spread = Math.max(pixel.red, pixel.green, pixel.blue) - Math.min(pixel.red, pixel.green, pixel.blue);
+    const distanceFromEdge = colorDistance(pixel, edgeColor);
+    const plainLightBackdrop = brightness > 202 && spread < 48;
+    const darkBackdrop = brightness < 112 && distanceFromEdge < 122;
+
+    return distanceFromEdge < 96 || plainLightBackdrop || darkBackdrop;
+  };
+
+  const enqueue = (x, y) => {
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) {
+      return;
+    }
+    const position = y * canvas.width + x;
+    if (visited[position] || !isLikelyBackgroundPixel(x, y)) {
+      return;
+    }
+    visited[position] = 1;
+    queue.push(position);
+  };
+
+  for (let x = 0; x < canvas.width; x += 1) {
+    enqueue(x, 0);
+    enqueue(x, canvas.height - 1);
+  }
+  for (let y = 0; y < canvas.height; y += 1) {
+    enqueue(0, y);
+    enqueue(canvas.width - 1, y);
+  }
+
+  let queueIndex = 0;
+  while (queueIndex < queue.length) {
+    const position = queue[queueIndex];
+    queueIndex += 1;
+    const x = position % canvas.width;
+    const y = Math.floor(position / canvas.width);
+    enqueue(x + 1, y);
+    enqueue(x - 1, y);
+    enqueue(x, y + 1);
+    enqueue(x, y - 1);
+  }
+
+  for (let position = 0; position < visited.length; position += 1) {
+    if (!visited[position]) {
+      continue;
+    }
+    const index = position * 4;
+    pixels[index] = fillColor.red;
+    pixels[index + 1] = fillColor.green;
+    pixels[index + 2] = fillColor.blue;
+    pixels[index + 3] = 255;
+  }
+
+  context.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
+};
 
 const syncPassportBackgroundColor = () => {
   const backgroundColor = getPassportBackgroundColor();
@@ -1034,6 +1188,26 @@ const applyClientPhotoProcessing = async () => {
   }
 };
 
+const applyLocalBackgroundFallback = async (message = '') => {
+  const backgroundColor = selectedBackgroundMode === 'ai-cleanup' ? '#fbfaf4' : '#ffffff';
+  const localBackgroundDataUrl = await buildLocalBackgroundRemovalDataUrl({ backgroundColor });
+  if (!localBackgroundDataUrl) {
+    backgroundNote.textContent = message || 'Background cleanup is temporarily unavailable. Keeping the selected photo unchanged.';
+    return false;
+  }
+
+  backgroundResultDataUrl = localBackgroundDataUrl;
+  const variantName = selectedBackgroundMode === 'ai-cleanup' ? 'ai' : 'white';
+  await setVariant(variantName, localBackgroundDataUrl);
+  await selectVariant(variantName);
+  setChecklistItem('background', 'pass', selectedBackgroundMode === 'ai-cleanup' ? 'Background cleaned' : 'Background: plain white');
+  setAiCheck('background', 'pass', 'Local background preview filled exposed background areas while preserving the original face.');
+  backgroundNote.textContent = message
+    ? `${message} Local background preview filled exposed areas with ${selectedBackgroundMode === 'ai-cleanup' ? 'off-white' : 'white'}.`
+    : `Local background preview filled exposed areas with ${selectedBackgroundMode === 'ai-cleanup' ? 'off-white' : 'white'}.`;
+  return true;
+};
+
 const requestBackgroundEdit = async () => {
   if (!currentImageFile || !currentPhotoDataUrl || selectedBackgroundMode === 'keep-original') {
     return;
@@ -1042,7 +1216,9 @@ const requestBackgroundEdit = async () => {
   const requestId = ++backgroundRequestId;
   backgroundNote.textContent = selectedBackgroundMode === 'ai-cleanup'
     ? 'Cleaning background while preserving facial features...'
-    : 'Replacing background with white...';
+    : selectedBackgroundMode === 'remove-background'
+      ? 'Removing the background and filling exposed areas...'
+      : 'Replacing background with white...';
 
   try {
     const response = await fetch('/api/photo/background', {
@@ -1071,14 +1247,14 @@ const requestBackgroundEdit = async () => {
     }
 
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = result.message || 'AI cleanup is not configured on this server yet. Keeping the selected photo unchanged.';
+    await applyLocalBackgroundFallback(result.message || 'AI cleanup is not configured on this server yet.');
   } catch {
     if (requestId !== backgroundRequestId || !currentImageFile) {
       return;
     }
     backgroundResultDataUrl = '';
     photoFrame.classList.remove('subject-mask');
-    backgroundNote.textContent = 'AI cleanup is unavailable. Keeping the selected photo unchanged.';
+    await applyLocalBackgroundFallback('AI cleanup is unavailable.');
   }
 };
 
@@ -1087,7 +1263,7 @@ const applyBackgroundMode = () => {
   backgroundRequestId += 1;
   processingRequestId += 1;
   backgroundResultDataUrl = '';
-  photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white');
+  photoFrame.classList.toggle('background-white', selectedBackgroundMode === 'replace-white' || selectedBackgroundMode === 'remove-background');
   photoFrame.classList.toggle('background-soft-white', selectedBackgroundMode === 'ai-cleanup');
   photoFrame.classList.remove('subject-mask');
   renderPrintSheetPreview();
@@ -1095,6 +1271,7 @@ const applyBackgroundMode = () => {
   const backgroundMessages = {
     'keep-original': 'Use a plain white or off-white background for most passport photos.',
     'replace-white': 'Requesting a strict white-background-only variant. The original stays available.',
+    'remove-background': 'Removing the existing background and filling exposed areas with white.',
     'ai-cleanup': 'Requesting a recommended compliant background while preserving facial features.'
   };
 

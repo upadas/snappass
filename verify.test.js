@@ -196,6 +196,7 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(html, /id="backgroundMode"/);
   assert.match(html, /id="lightingMode"/);
   assert.match(html, /Replace with white/);
+  assert.match(html, /Remove background/);
   assert.match(html, /AI cleanup preview/);
   assert.match(html, /Auto enhance lighting/);
   assert.match(js, /backgroundMode\.addEventListener\('change'/);
@@ -208,6 +209,8 @@ test('background replacement controls are available and affect exports', () => {
   assert.match(js, /getPassportBackgroundColor/);
   assert.match(js, /syncPassportBackgroundColor/);
   assert.match(js, /OPENAI_API_KEY|backgroundResultDataUrl/);
+  assert.match(js, /buildLocalBackgroundRemovalDataUrl/);
+  assert.match(js, /applyLocalBackgroundFallback/);
   assert.match(js, /backgroundPlain/);
   assert.match(js, /lightingEven/);
   assert.doesNotMatch(js, /looksLikeBackground/);

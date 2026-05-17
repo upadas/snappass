@@ -660,7 +660,8 @@ const analyzeWithOpenAi = async ({ imageDataUrl, country, documentType }) => {
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI analysis failed: ${response.status}`);
+    const text = await response.text();
+    throw new Error(`OpenAI analysis failed: ${describeOpenAiError(response.status, text)}`);
   }
 
   const data = await response.json();
@@ -700,6 +701,12 @@ const editBackgroundWithOpenAi = async ({ imageDataUrl, mode, country, documentT
       'Change only the background to clean pure white for a passport photo.',
       'Do not apply beauty retouching, lighting enhancement, contrast changes, clothing edits, crop changes, or any other adjustment.',
       'This is a strict background-only edit.'
+    ].join(' '),
+    'remove-background': [
+      'Remove only the existing background around the person and replace it with clean pure white.',
+      'Preserve the person, clothing, hair, face, skin texture, and all facial features exactly as uploaded.',
+      'Do not crop, resize, rotate, relight, retouch, sharpen, redraw, or beautify the person.',
+      'This is a strict subject-preserving background removal.'
     ].join(' ')
   };
   form.append('model', openAiImageModel);
