@@ -152,25 +152,41 @@ const run = async () => {
     await page.evaluate(() => {
       const canvas = document.createElement('canvas');
       const stream = canvas.captureStream();
+      window.__snapPassCameraRequests = [];
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: {
-          getUserMedia: async () => stream
+          getUserMedia: async (constraints) => {
+            window.__snapPassCameraRequests.push(constraints.video.facingMode.ideal);
+            return stream;
+          }
         }
       });
       HTMLMediaElement.prototype.play = async function play() {};
     });
     await page.click('#cameraButton');
     await page.waitForFunction(() => !document.querySelector('#cameraModal').hidden);
-    await page.waitForFunction(() => document.querySelector('#cameraStatus').textContent.includes('Center your face'));
+    await page.waitForFunction(() => document.querySelector('#cameraStatus').textContent.includes('Back camera ready'));
     const cameraState = await page.evaluate(() => ({
       modalHidden: document.querySelector('#cameraModal').hidden,
       captureDisabled: document.querySelector('#captureCameraButton').disabled,
-      videoHasStream: Boolean(document.querySelector('#cameraVideo').srcObject)
+      videoHasStream: Boolean(document.querySelector('#cameraVideo').srcObject),
+      flipText: document.querySelector('#flipCameraButton').textContent.trim(),
+      requestedFacingModes: window.__snapPassCameraRequests
     }));
     assert.equal(cameraState.modalHidden, false);
     assert.equal(cameraState.captureDisabled, false);
     assert.equal(cameraState.videoHasStream, true);
+    assert.equal(cameraState.flipText, 'Use front camera');
+    assert.deepEqual(cameraState.requestedFacingModes, ['environment']);
+    await page.click('#flipCameraButton');
+    await page.waitForFunction(() => window.__snapPassCameraRequests.length === 2);
+    const flippedCameraState = await page.evaluate(() => ({
+      flipText: document.querySelector('#flipCameraButton').textContent.trim(),
+      requestedFacingModes: window.__snapPassCameraRequests
+    }));
+    assert.equal(flippedCameraState.flipText, 'Use back camera');
+    assert.deepEqual(flippedCameraState.requestedFacingModes, ['environment', 'user']);
     await page.click('#cancelCameraButton');
     await page.waitForFunction(() => document.querySelector('#cameraModal').hidden);
 

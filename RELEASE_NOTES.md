@@ -4,7 +4,14 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-16
 
-### `pending` - Add remove-background fallback
+### `pending` - Add rear-camera capture toggle
+
+- Camera capture now defaults to the back camera when the browser/device supports it.
+- Added a **Use front camera / Use back camera** flip control in the camera modal.
+- Restarting the camera stream now swaps between `environment` and `user` facing modes without routing users through file upload.
+- Verification: `node --check app.js`, `npm run test:source`, and `npm run test:browser`.
+
+### `0004c27` - Add remove-background fallback
 
 - Added a **Remove background** mode beside strict white replacement and AI cleanup.
 - When OpenAI image edits fail or are rate-limited, SnapPass now builds a local white/off-white background preview instead of leaving the white variant broken.

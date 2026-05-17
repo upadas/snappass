@@ -51,6 +51,7 @@ const cameraClose = document.querySelector('#cameraClose');
 const cameraVideo = document.querySelector('#cameraVideo');
 const cameraStatus = document.querySelector('#cameraStatus');
 const cancelCameraButton = document.querySelector('#cancelCameraButton');
+const flipCameraButton = document.querySelector('#flipCameraButton');
 const captureCameraButton = document.querySelector('#captureCameraButton');
 
 const DEFAULT_OUTPUT_SIZE = 600;
@@ -100,6 +101,7 @@ let dragState = null;
 let phoneUploadSession = '';
 let phoneUploadPollTimer = null;
 let cameraStream = null;
+let cameraFacingMode = 'environment';
 let adjustedPreviewTimer = null;
 let adjustedPreviewRefreshId = 0;
 let localImageFindings = {
@@ -1533,13 +1535,48 @@ const stopCameraStream = () => {
 const closeCameraModal = () => {
   cameraModal.hidden = true;
   captureCameraButton.disabled = true;
+  flipCameraButton.disabled = false;
   stopCameraStream();
+};
+
+const updateCameraFlipButton = () => {
+  flipCameraButton.textContent = cameraFacingMode === 'environment'
+    ? 'Use front camera'
+    : 'Use back camera';
+};
+
+const startCameraStream = async () => {
+  stopCameraStream();
+  captureCameraButton.disabled = true;
+  flipCameraButton.disabled = true;
+  updateCameraFlipButton();
+  cameraStatus.textContent = cameraFacingMode === 'environment'
+    ? 'Opening back camera...'
+    : 'Opening front camera...';
+
+  cameraStream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { ideal: cameraFacingMode },
+      width: { ideal: 1280 },
+      height: { ideal: 1280 }
+    },
+    audio: false
+  });
+  cameraVideo.srcObject = cameraStream;
+  await cameraVideo.play();
+  captureCameraButton.disabled = false;
+  flipCameraButton.disabled = false;
+  cameraStatus.textContent = cameraFacingMode === 'environment'
+    ? 'Back camera ready. Ask the person to face the camera, keep the background plain, then capture.'
+    : 'Front camera ready. Use the back camera when possible for sharper passport photos.';
 };
 
 const openCameraModal = async () => {
   cameraModal.hidden = false;
   captureCameraButton.disabled = true;
-  cameraStatus.textContent = 'Opening camera...';
+  cameraFacingMode = 'environment';
+  updateCameraFlipButton();
+  cameraStatus.textContent = 'Opening back camera...';
 
   if (!navigator.mediaDevices?.getUserMedia) {
     cameraStatus.textContent = 'Camera capture needs HTTPS, localhost, and browser camera permission. Use the upload button if this file preview cannot access the camera.';
@@ -1547,21 +1584,27 @@ const openCameraModal = async () => {
   }
 
   try {
-    stopCameraStream();
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'user',
-        width: { ideal: 1280 },
-        height: { ideal: 1280 }
-      },
-      audio: false
-    });
-    cameraVideo.srcObject = cameraStream;
-    await cameraVideo.play();
-    captureCameraButton.disabled = false;
-    cameraStatus.textContent = 'Center your face, keep the background plain, then capture.';
+    await startCameraStream();
   } catch {
     cameraStatus.textContent = 'Camera permission was blocked or unavailable. Run SnapPass from HTTPS or localhost and allow camera access.';
+    flipCameraButton.disabled = false;
+  }
+};
+
+const flipCamera = async () => {
+  if (cameraModal.hidden || !navigator.mediaDevices?.getUserMedia) {
+    return;
+  }
+
+  cameraFacingMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+  try {
+    await startCameraStream();
+  } catch {
+    cameraFacingMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+    updateCameraFlipButton();
+    captureCameraButton.disabled = !cameraStream;
+    flipCameraButton.disabled = false;
+    cameraStatus.textContent = 'Could not switch cameras. Continue with the active camera or check browser permissions.';
   }
 };
 
@@ -2000,6 +2043,7 @@ phoneUploadModal.addEventListener('click', (event) => {
 
 cameraClose.addEventListener('click', closeCameraModal);
 cancelCameraButton.addEventListener('click', closeCameraModal);
+flipCameraButton.addEventListener('click', flipCamera);
 captureCameraButton.addEventListener('click', captureCameraPhoto);
 cameraModal.addEventListener('click', (event) => {
   if (event.target === cameraModal) {

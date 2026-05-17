@@ -94,8 +94,12 @@ test('script wires upload preview and export state behavior', () => {
   assert.match(js, /resetButton\.addEventListener\('click'/);
   assert.match(html, /id="cameraModal"/);
   assert.match(html, /id="cameraVideo"/);
+  assert.match(html, /id="flipCameraButton"/);
   assert.match(html, /id="captureCameraButton"/);
   assert.match(js, /mediaDevices\?\.getUserMedia/);
+  assert.match(js, /cameraFacingMode/);
+  assert.match(js, /facingMode:\s*\{\s*ideal:\s*cameraFacingMode\s*\}/);
+  assert.match(js, /flipCameraButton\.addEventListener\('click'/);
   assert.match(js, /captureCameraButton\.addEventListener\('click'/);
   assert.doesNotMatch(js, /cameraButton\.addEventListener\('click', \(\) => \{\s*photoInput\.click\(\);/);
 });
