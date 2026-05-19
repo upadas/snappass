@@ -61,6 +61,8 @@ const PRINT_SHEET_WIDTH = 1800;
 const PRINT_SHEET_HEIGHT = 1200;
 const PRINT_PREVIEW_WIDTH = 900;
 const PRINT_PREVIEW_HEIGHT = 600;
+const STATE_DEPARTMENT_CANVAS_SIZE = 600;
+const STATE_DEPARTMENT_COMPRESSION_THRESHOLD = 35;
 const PRINT_QUOTES = [
   'Great journeys start with a clear first step.',
   'Carry courage. The world is waiting.',
@@ -104,6 +106,11 @@ let cameraStream = null;
 let cameraFacingMode = 'environment';
 let adjustedPreviewTimer = null;
 let adjustedPreviewRefreshId = 0;
+let stateDepartmentCropDecision = {
+  state: 'idle',
+  message: '',
+  details: []
+};
 let localImageFindings = {
   isHuman: true,
   warning: '',
@@ -351,18 +358,29 @@ const applySpecLabels = () => {
 };
 
 const setAiCheck = (name, state, message) => {
+  const cropDecisionIsAuthoritative = ['no-crop', 'auto-crop', 'rejected'].includes(stateDepartmentCropDecision.state);
   const label = {
     human: 'Human subject',
     lighting: 'Lighting',
     head: 'Head fit',
     background: 'Background'
   }[name] || 'Photo check';
+  if (cropDecisionIsAuthoritative && name === 'head') {
+    return;
+  }
   if (state === 'warning') {
     advisorSummary.textContent = `${label}: ${message}`;
   } else if (!advisorSummary.textContent || /Upload a photo|Analyzing|Preparing/.test(advisorSummary.textContent)) {
     advisorSummary.textContent = message;
   }
 };
+
+const previewIsPristine = () => (
+  Number(zoomRange.value) === 100 &&
+  Number(rotateRange.value) === 0 &&
+  Math.abs(previewPanX) < 0.001 &&
+  Math.abs(previewPanY) < 0.001
+);
 
 const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -568,6 +586,134 @@ const analyzePortraitPixels = () => {
   }
 
   return { isHuman: true, warning: '', backgroundPlain, lightingEven };
+};
+
+const getStateDepartmentCompressionRatio = (file) => {
+  if (!file || !photoPreview.naturalWidth || !photoPreview.naturalHeight || !file.size) {
+    return 0;
+  }
+  return (3 * photoPreview.naturalWidth * photoPreview.naturalHeight) / file.size;
+};
+
+const getStateDepartmentCropDecision = (file) => {
+  const width = photoPreview.naturalWidth || 0;
+  const height = photoPreview.naturalHeight || 0;
+  const compressionRatio = /^image\/jpe?g$/i.test(file?.type || '')
+    ? getStateDepartmentCompressionRatio(file)
+    : 0;
+
+  if (width < STATE_DEPARTMENT_CANVAS_SIZE || height < STATE_DEPARTMENT_CANVAS_SIZE) {
+    return {
+      state: 'rejected',
+      message: 'Your photo has been rejected for the following reason(s):',
+      details: ['Minimum photo dimensions are 600x600']
+    };
+  }
+
+  if (compressionRatio >= STATE_DEPARTMENT_COMPRESSION_THRESHOLD) {
+    return {
+      state: 'rejected',
+      message: 'Your photo has been rejected for the following reason(s):',
+      details: ['Overall image quality may be poor (low resolution, lack of clarity, or overly compressed)']
+    };
+  }
+
+  if (width === STATE_DEPARTMENT_CANVAS_SIZE && height === STATE_DEPARTMENT_CANVAS_SIZE) {
+    return {
+      state: 'no-crop',
+      message: 'Your photo does not need cropping:',
+      details: ['Photo dimensions are 600x600']
+    };
+  }
+
+  if (localImageFindings.isHuman === false || localImageFindings.retakeRequired) {
+    return {
+      state: 'rejected',
+      message: 'Automatic Crop is unable to successfully crop your photo.',
+      details: ['Choose a new photo or try to manually crop the photo']
+    };
+  }
+
+  return {
+    state: 'auto-crop',
+    message: 'Automatic crop was applied using the same 600x600 target as the government photo tool.',
+    details: ['Automatic crop']
+  };
+};
+
+const applyStateDepartmentAutoCrop = (decision) => {
+  if (decision.state !== 'auto-crop') {
+    return;
+  }
+
+  const width = photoPreview.naturalWidth || STATE_DEPARTMENT_CANVAS_SIZE;
+  const height = photoPreview.naturalHeight || STATE_DEPARTMENT_CANVAS_SIZE;
+  const coverZoom = Math.max(width, height) / Math.min(width, height);
+  const nextZoom = clamp(Math.round(coverZoom * 100), 100, MAX_ZOOM);
+  const portraitOffset = height > width ? 10 : 0;
+  const landscapeOffset = width > height ? 0 : 0;
+
+  zoomRange.value = String(nextZoom);
+  rotateRange.value = '0';
+  previewPanX = landscapeOffset;
+  previewPanY = portraitOffset;
+};
+
+const setStateDepartmentCropDecision = (decision) => {
+  stateDepartmentCropDecision = decision;
+  advisorSummary.textContent = [decision.message, ...decision.details].join(' ');
+
+  if (decision.state === 'rejected') {
+    currentAiFindings = {
+      ...currentAiFindings,
+      hasHumanWarning: true,
+      hasHeadIssue: true,
+      retakeRequired: true
+    };
+    humanWarning.hidden = false;
+    humanWarning.textContent = decision.details.join(' ');
+    aiStatus.textContent = 'Retake needed';
+    aiStatus.classList.add('is-warning');
+    statusPill.textContent = 'Rejected';
+    statusPill.classList.add('is-danger');
+    statusPill.classList.remove('is-warning');
+    setChecklistItem('human', 'warning', 'Photo rejected');
+    setChecklistItem('size', 'danger', decision.details[0] || 'Photo rejected');
+    setChecklistItem('head', 'danger', 'Crop unavailable');
+    setChecklistItem('background', 'warning', 'Check blocked');
+    setChecklistItem('lighting', 'warning', 'Check blocked');
+    setAiCheck('human', 'warning', decision.details[0] || decision.message);
+    setAiCheck('head', 'warning', 'Government-style automatic crop cannot be calculated for this upload.');
+    return;
+  }
+
+  if (decision.state === 'no-crop') {
+    statusPill.textContent = 'No crop needed';
+    setChecklistItem('size', 'pass', activeSpec.checklistSize);
+    setChecklistItem('head', 'pass', activeSpec.head);
+    return;
+  }
+
+  if (decision.state === 'auto-crop') {
+    statusPill.textContent = 'Automatic crop';
+    statusPill.classList.remove('is-danger');
+    statusPill.classList.add('is-warning');
+    setChecklistItem('size', 'pass', activeSpec.checklistSize);
+    setChecklistItem('head', 'warning', 'Automatic crop');
+  }
+};
+
+const reinforceStateDepartmentCropSummary = () => {
+  if (!['no-crop', 'auto-crop', 'rejected'].includes(stateDepartmentCropDecision.state)) {
+    return;
+  }
+
+  const cropSummary = [stateDepartmentCropDecision.message, ...stateDepartmentCropDecision.details].join(' ');
+  if (!cropSummary || advisorSummary.textContent.includes(stateDepartmentCropDecision.message)) {
+    return;
+  }
+
+  advisorSummary.textContent = `${cropSummary} ${advisorSummary.textContent}`.trim();
 };
 
 const analysisNeedsRetake = (analysis = {}) => {
@@ -842,6 +988,7 @@ const requestPhotoSuggestion = async (file) => {
     if (analysis.isHuman !== false && suggestion.message && suggestion.mode !== 'server fallback') {
       advisorSummary.textContent = suggestion.message;
     }
+    reinforceStateDepartmentCropSummary();
   } catch {
     if (requestId !== suggestionRequestId || !currentImageFile) {
       return;
@@ -849,6 +996,7 @@ const requestPhotoSuggestion = async (file) => {
     await setVariant('lighting', await buildAdjustedPhotoDataUrl({ forceLighting: true }));
     runAiAssessment(file);
     advisorSummary.textContent = 'AI suggested photo is unavailable, so SnapPass kept the original and offered a safe lighting preview.';
+    reinforceStateDepartmentCropSummary();
   }
 };
 
@@ -1342,6 +1490,31 @@ const evaluateCropFit = () => {
     return;
   }
 
+  if (stateDepartmentCropDecision.state === 'rejected') {
+    statusPill.textContent = 'Rejected';
+    statusPill.classList.add('is-danger');
+    statusPill.classList.remove('is-warning');
+    setChecklistItem('head', 'danger', 'Crop unavailable');
+    setAiCheck('head', 'warning', 'Government-style automatic crop cannot be calculated for this upload.');
+    return;
+  }
+
+  if (currentAiFindings.hasHumanWarning) {
+    statusPill.textContent = 'Retake needed';
+    statusPill.classList.add('is-warning');
+    setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
+    setAiCheck('head', 'warning', 'Head geometry cannot be checked until a human passport-style portrait is detected.');
+    return;
+  }
+
+  if (stateDepartmentCropDecision.state === 'no-crop' && previewIsPristine()) {
+    statusPill.textContent = 'No crop needed';
+    statusPill.classList.remove('is-warning', 'is-danger');
+    setChecklistItem('head', 'pass', activeSpec.head);
+    setAiCheck('head', 'pass', 'Photo dimensions are already 600x600, so no crop is needed.');
+    return;
+  }
+
   const zoom = Number(zoomRange.value);
   const rotate = Math.abs(Number(rotateRange.value));
   const pan = Math.max(Math.abs(previewPanX), Math.abs(previewPanY));
@@ -1352,14 +1525,6 @@ const evaluateCropFit = () => {
 
   statusPill.classList.toggle('is-danger', isDanger);
   statusPill.classList.toggle('is-warning', isWarning && !isDanger);
-
-  if (currentAiFindings.hasHumanWarning) {
-    statusPill.textContent = 'Retake needed';
-    statusPill.classList.add('is-warning');
-    setChecklistItem('head', 'warning', `${activeSpec.head} blocked`);
-    setAiCheck('head', 'warning', 'Head geometry cannot be checked until a human passport-style portrait is detected.');
-    return;
-  }
 
   if (isDanger) {
     statusPill.textContent = 'Fix crop';
@@ -1383,7 +1548,8 @@ const evaluateCropFit = () => {
     return;
   }
 
-  statusPill.textContent = 'Preview ready';
+  statusPill.textContent = stateDepartmentCropDecision.state === 'auto-crop' ? 'Automatic crop' : 'Preview ready';
+  statusPill.classList.toggle('is-warning', stateDepartmentCropDecision.state === 'auto-crop');
   setChecklistItem('head', 'pass', activeSpec.head);
   setAiCheck('head', 'pass', 'Head appears centered inside the guide.');
 };
@@ -1427,9 +1593,16 @@ const showLoadedState = async (file) => {
     await setVariant('original', currentPhotoDataUrl);
     await selectVariant('original');
     localImageFindings = analyzePortraitPixels();
+    stateDepartmentCropDecision = getStateDepartmentCropDecision(file);
+    applyStateDepartmentAutoCrop(stateDepartmentCropDecision);
     applyBackgroundMode();
     await applyLightingMode();
     runAiAssessment(file);
+    setStateDepartmentCropDecision(stateDepartmentCropDecision);
+    updatePreviewTransform();
+    if (stateDepartmentCropDecision.state === 'rejected') {
+      return;
+    }
     await requestPhotoSuggestion(file);
   } catch {
     runAiAssessment(file);
@@ -1478,6 +1651,11 @@ const resetState = () => {
     lightingEven: true,
     eyesClear: true,
     retakeRequired: false
+  };
+  stateDepartmentCropDecision = {
+    state: 'idle',
+    message: '',
+    details: []
   };
   photoInput.value = '';
   photoPreview.removeAttribute('src');

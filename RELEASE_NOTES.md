@@ -2,9 +2,18 @@
 
 Every pushed change should add a short entry here with the date, commit, user-facing change, and verification run.
 
+## 2026-05-18
+
+### `pending` - Add government-style auto-crop decisions
+
+- Added the State Department photo-tool decision flow: exact 600x600 uploads show **No crop needed**, larger eligible photos get an **Automatic crop** preview, and below-minimum/over-compressed uploads are rejected with a clear reason.
+- Auto-croppable photos now receive an initial square-crop transform while still allowing the user to adjust zoom, pan, and rotation afterward.
+- Rejected photos skip AI suggestion generation and keep the reason visible in the advisor panel.
+- Verification: `node --check app.js`, `npm run test:source`, `npm run test:browser`, and `npm test`.
+
 ## 2026-05-16
 
-### `pending` - Add rear-camera capture toggle
+### `8975ee3` - Add rear-camera capture toggle
 
 - Camera capture now defaults to the back camera when the browser/device supports it.
 - Added a **Use front camera / Use back camera** flip control in the camera modal.

@@ -9,6 +9,20 @@ const portraitSvg = Buffer.from(`
   <path d="M170 190c20-110 235-110 260 0 8-120-260-125-260 0z" fill="#1e2524"/>
   <rect x="190" y="350" width="220" height="230" rx="72" fill="#d9ded9"/>
 </svg>`);
+const cropNeededSvg = Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+  <rect width="900" height="1200" fill="#f7f7f2"/>
+  <circle cx="450" cy="390" r="155" fill="#d79a78"/>
+  <path d="M285 365c32-140 300-140 330 0 5-150-330-150-330 0z" fill="#1e2524"/>
+  <rect x="315" y="600" width="270" height="420" rx="78" fill="#d9ded9"/>
+</svg>`);
+const tooSmallSvg = Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <rect width="500" height="500" fill="#f7f7f2"/>
+  <circle cx="250" cy="175" r="96" fill="#d79a78"/>
+  <path d="M145 170c22-88 190-88 210 0 4-95-215-98-210 0z" fill="#1e2524"/>
+  <rect x="170" y="300" width="160" height="180" rx="54" fill="#d9ded9"/>
+</svg>`);
 const nonPortraitSvg = Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
   <rect width="600" height="600" fill="#111827"/>
@@ -262,7 +276,7 @@ const run = async () => {
       qualityLightingBackground: getComputedStyle(document.querySelector('#variantLightingPreview')).backgroundColor
     }));
     assert.equal(uploaded.exportHidden, false);
-    assert.equal(uploaded.status, 'Preview ready');
+    assert.equal(uploaded.status, 'No crop needed');
     assert.equal(uploaded.hasPhoto, true);
     assert.equal(uploaded.agentStatus, 'AI preview');
     assert.equal(uploaded.applySuggestionHidden, false);
@@ -297,12 +311,43 @@ const run = async () => {
       assert.equal(uploaded.whiteVariantHasSrc, false);
     }
     assert.equal(uploaded.lightingVariantHasSrc, true);
-    assert.match(uploaded.advisorSummary, /AI|Original|photo/i);
+    assert.match(uploaded.advisorSummary, /does not need cropping|Photo dimensions are 600x600|AI|Original|photo/i);
     assert.ok(uploaded.quoteText.length > 10);
     assert.equal(uploaded.printPreviewWidth, 900);
     assert.equal(uploaded.printPreviewHeight, 600);
     assert.equal(uploaded.qualityOriginalBackground, uploaded.frameBackground);
     assert.equal(uploaded.qualityLightingBackground, uploaded.frameBackground);
+
+    const cropPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await cropPage.goto(appUrl);
+    await uploadSample(cropPage, 'needs-crop.svg', cropNeededSvg);
+    const autoCropState = await cropPage.evaluate(() => ({
+      status: document.querySelector('#statusPill').textContent.trim(),
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
+      zoom: document.querySelector('#zoomRange').value,
+      panX: getComputedStyle(document.querySelector('#photoFrame')).getPropertyValue('--preview-pan-x').trim(),
+      panY: getComputedStyle(document.querySelector('#photoFrame')).getPropertyValue('--preview-pan-y').trim(),
+      headText: document.querySelector('[data-check="head"]').textContent.trim()
+    }));
+    assert.equal(autoCropState.status, 'Automatic crop');
+    assert.match(autoCropState.advisorSummary, /Automatic crop/i);
+    assert.ok(Number(autoCropState.zoom) > 100);
+    assert.notEqual(autoCropState.panY, '0%');
+    assert.match(autoCropState.headText, /Head|crop/i);
+    await cropPage.close();
+
+    const rejectPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await rejectPage.goto(appUrl);
+    await uploadRetakeSample(rejectPage, 'too-small.svg', tooSmallSvg);
+    const rejectedState = await rejectPage.evaluate(() => ({
+      status: document.querySelector('#statusPill').textContent.trim(),
+      advisorSummary: document.querySelector('#advisorSummary').textContent.trim(),
+      warning: document.querySelector('#humanWarning').textContent.trim()
+    }));
+    assert.equal(rejectedState.status, 'Rejected');
+    assert.match(rejectedState.advisorSummary, /Minimum photo dimensions are 600x600/i);
+    assert.match(rejectedState.warning, /choose a different photo|minimum/i);
+    await rejectPage.close();
 
     await page.hover('#photoFrame');
     const immediatePreview = await page.evaluate(() => ({
