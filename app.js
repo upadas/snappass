@@ -30,6 +30,7 @@ const backgroundMode = document.querySelector('#backgroundMode');
 const backgroundNote = document.querySelector('#backgroundNote');
 const lightingMode = document.querySelector('#lightingMode');
 const applySuggestionButton = document.querySelector('#applySuggestionButton');
+const unlockAiEditButton = document.querySelector('#unlockAiEditButton');
 const printPreviewPanel = document.querySelector('#printPreviewPanel');
 const printPreviewLabel = document.querySelector('#printPreviewLabel');
 const printSheetPreview = document.querySelector('#printSheetPreview');
@@ -429,7 +430,9 @@ const setVariant = async (name, dataUrl) => {
   }
   if (card) {
     card.disabled = !dataUrl;
+    card.classList.remove('is-preview-only');
     card.dataset.emptyLabel = 'Not ready';
+    card.title = '';
   }
 };
 
@@ -452,6 +455,33 @@ const setVariantError = (name, message, fallbackLabel = 'AI edit failed') => {
   }
 };
 
+const setLocalPreviewOnlyVariant = (name, dataUrl, message = 'Local preview, not export-ready') => {
+  const card = variantCards.find((item) => item.dataset.variant === name);
+  const preview = {
+    ai: variantAiPreview,
+    white: variantWhitePreview,
+    lighting: variantLightingPreview
+  }[name];
+  photoVariants[name] = '';
+
+  if (preview) {
+    if (dataUrl) {
+      preview.src = dataUrl;
+    } else {
+      preview.removeAttribute('src');
+    }
+    preview.alt = dataUrl ? `${name} local preview, not export-ready` : '';
+  }
+
+  if (card) {
+    card.disabled = true;
+    card.classList.remove('is-selected');
+    card.classList.add('is-preview-only');
+    card.dataset.emptyLabel = message;
+    card.title = message;
+  }
+};
+
 const clearGeneratedVariants = () => {
   ['ai', 'white', 'lighting'].forEach((name) => {
     photoVariants[name] = '';
@@ -468,6 +498,7 @@ const clearGeneratedVariants = () => {
     if (card) {
       card.disabled = true;
       card.classList.remove('is-selected');
+      card.classList.remove('is-preview-only');
       card.dataset.emptyLabel = 'Not ready';
       card.title = '';
     }
@@ -980,7 +1011,7 @@ const requestPhotoSuggestion = async (file) => {
     if (!suggestion.variants?.whiteBackgroundDataUrl && suggestion.variantErrors?.whiteBackground) {
       try {
         await setVariant('white', await buildLocalBackgroundRemovalDataUrl({ backgroundColor: '#ffffff' }));
-        advisorSummary.textContent = `${suggestion.message || 'AI background editing failed.'} A local background preview is available for the white-background option.`;
+        advisorSummary.textContent = `${suggestion.message || 'AI background editing failed.'} A local preview, not export-ready, is available for the white-background option.`;
       } catch {
         setVariantError('white', suggestion.variantErrors.whiteBackground, 'White edit failed');
       }
@@ -1348,13 +1379,13 @@ const applyLocalBackgroundFallback = async (message = '') => {
 
   backgroundResultDataUrl = localBackgroundDataUrl;
   const variantName = selectedBackgroundMode === 'ai-cleanup' ? 'ai' : 'white';
-  await setVariant(variantName, localBackgroundDataUrl);
-  await selectVariant(variantName);
-  setChecklistItem('background', 'pass', selectedBackgroundMode === 'ai-cleanup' ? 'Background cleaned' : 'Background: plain white');
-  setAiCheck('background', 'pass', 'Local background preview filled exposed background areas while preserving the original face.');
+  setLocalPreviewOnlyVariant(variantName, localBackgroundDataUrl);
+  await selectVariant(selectedVariant && photoVariants[selectedVariant] ? selectedVariant : 'original');
+  setChecklistItem('background', 'warning', 'Local preview only');
+  setAiCheck('background', 'warning', 'Local preview filled exposed background areas for review only. Use paid AI edit for export-ready background replacement.');
   backgroundNote.textContent = message
-    ? `${message} Local background preview filled exposed areas with ${selectedBackgroundMode === 'ai-cleanup' ? 'off-white' : 'white'}.`
-    : `Local background preview filled exposed areas with ${selectedBackgroundMode === 'ai-cleanup' ? 'off-white' : 'white'}.`;
+    ? `${message} Local preview, not export-ready. It fills exposed areas with ${selectedBackgroundMode === 'ai-cleanup' ? 'off-white' : 'white'} so you can judge crop and framing.`
+    : `Local preview, not export-ready. It fills exposed areas with ${selectedBackgroundMode === 'ai-cleanup' ? 'off-white' : 'white'} so you can judge crop and framing.`;
   return true;
 };
 
@@ -2223,6 +2254,12 @@ cameraClose.addEventListener('click', closeCameraModal);
 cancelCameraButton.addEventListener('click', closeCameraModal);
 flipCameraButton.addEventListener('click', flipCamera);
 captureCameraButton.addEventListener('click', captureCameraPhoto);
+
+if (unlockAiEditButton) {
+  unlockAiEditButton.addEventListener('click', () => {
+    advisorSummary.textContent = 'Paid AI edit unlock will use Stripe Checkout. Free crop, local preview, and exports stay available while payment is being connected.';
+  });
+}
 cameraModal.addEventListener('click', (event) => {
   if (event.target === cameraModal) {
     closeCameraModal();

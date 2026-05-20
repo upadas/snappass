@@ -197,6 +197,13 @@
                 </button>
               </div>
               <button class="suggestion-button" id="applySuggestionButton" type="button" hidden>Apply suggested crop</button>
+              <div class="upgrade-panel" aria-label="Paid AI edit unlock">
+                <div>
+                  <strong>Need a precise AI background edit?</strong>
+                  <p>Free crop, zoom, rotate, downloads, and local previews stay free. Passport-safe AI edits can be unlocked when payment is connected.</p>
+                </div>
+                <button class="ai-upgrade-button" id="unlockAiEditButton" type="button" data-payment-provider="stripe-checkout">Unlock AI edit - $1.99</button>
+              </div>
               <p class="ai-note">AI suggested uses a recommended compliant background. White background changes only the background to white. Facial features are not intentionally changed.</p>
             </div>
 
@@ -232,6 +239,11 @@
 
             <div class="export-panel" id="exportPanel" hidden>
               <h3>Export options</h3>
+              <div class="print-format-buttons" aria-label="Print format options">
+                <button class="is-selected" type="button" data-print-format="passport-4x6">Passport 4x6</button>
+                <button type="button" data-print-format="wallet-grid">Wallet size grid</button>
+                <button type="button" data-print-format="collage-4x53">4 x 5.3 collage</button>
+              </div>
               <div class="export-grid">
                 <button type="button" id="downloadDigitalButton">Download digital photo</button>
                 <button type="button" id="downloadPrintButton">Create printable 4x6 sheet</button>
@@ -407,8 +419,16 @@
               <li>One quiet Google AdSense placement</li>
               <li>Optional donations after download</li>
               <li>Future print pickup referral revenue</li>
-              <li>Optional bring-your-own AI key for heavier edits</li>
+              <li>$1.99 optional AI edit for precise background and lighting cleanup</li>
             </ul>
+            <div class="ai-edit-gallery" aria-label="AI edit gallery">
+              <p class="section-kicker">AI edit gallery</p>
+              <div>
+                <span>Original</span>
+                <span>White background</span>
+                <span>Lighting balanced</span>
+              </div>
+            </div>
           </div>
           <aside class="donation-panel" aria-labelledby="donation-title">
             <div>

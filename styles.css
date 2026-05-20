@@ -862,6 +862,21 @@ h1 {
   text-align: center;
 }
 
+.variant-card.is-preview-only {
+  border-style: dashed;
+  background: #fbfdfb;
+}
+
+.variant-card.is-preview-only::after {
+  content: "Local preview, not export-ready";
+  display: block;
+  margin-top: -2px;
+  color: var(--color-warning);
+  font-size: 0.64rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
 .variant-card span {
   font-size: 0.72rem;
   font-weight: 850;
@@ -873,6 +888,48 @@ h1 {
   color: var(--color-muted);
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+.upgrade-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #cddfd8;
+  border-radius: var(--radius);
+  background: #f7fbf8;
+}
+
+.upgrade-panel strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.86rem;
+}
+
+.upgrade-panel p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.ai-upgrade-button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #146b55;
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ai-upgrade-button:hover {
+  background: #0f5946;
 }
 
 .range-row {
@@ -1155,6 +1212,30 @@ h1 {
   gap: 10px;
 }
 
+.print-format-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.print-format-buttons button {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #c8ddd3;
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.print-format-buttons button.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
 .export-grid button {
   padding: 10px 12px;
   border-color: #c8ddd3;
@@ -1306,6 +1387,35 @@ h1 {
 .payment-methods {
   padding-top: 2px;
   font-size: 0.82rem;
+}
+
+.ai-edit-gallery {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #d8e8e1;
+  border-radius: var(--radius);
+  background: #f7fbf8;
+}
+
+.ai-edit-gallery div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-edit-gallery span {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  border: 1px solid #c8ddd3;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
 }
 
 .checklist-band {

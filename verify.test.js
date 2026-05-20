@@ -72,9 +72,14 @@ test('pricing section includes optional donation monetization', () => {
   assert.match(html, /Apple Pay, Google Pay, cards, PayPal, Venmo, Cash App/);
   assert.match(html, /Future print pickup referral revenue/);
   assert.match(html, /data-payment-provider="stripe-or-paypal"/);
+  assert.match(html, /Unlock AI edit - \$1\.99/);
+  assert.match(html, /AI edit gallery/);
+  assert.match(html, /data-payment-provider="stripe-checkout"/);
   assert.match(css, /\.donation-panel/);
   assert.match(css, /\.donation-amounts/);
   assert.match(css, /\.donate-button/);
+  assert.match(css, /\.upgrade-panel/);
+  assert.match(css, /\.ai-upgrade-button/);
 });
 
 test('stylesheet defines the approved visual system and responsive layout', () => {
@@ -257,6 +262,7 @@ test('site documents print partner and deployment strategy', () => {
   const readme = read('README.md');
   const envExample = read('.env.example');
   const js = read('app.js');
+  const css = read('styles.css');
   const server = read('server.js');
   const printAgent = read('docs/agents/print-provider-agent.md');
 
@@ -266,6 +272,8 @@ test('site documents print partner and deployment strategy', () => {
   assert.match(html, /PNI Digital Media|Fujifilm/);
   assert.match(html, /id="printOrderForm"/);
   assert.match(html, /Request Walgreens pickup/);
+  assert.match(html, /data-print-format="wallet-grid"/);
+  assert.match(html, /data-print-format="collage-4x53"/);
   assert.match(readme, /Recommended deployment/);
   assert.match(readme, /\/api\/print\/orders/);
   assert.match(readme, /Railway/);
@@ -289,6 +297,7 @@ test('site documents print partner and deployment strategy', () => {
   assert.match(server, /pending_provider_credentials/);
   assert.match(printAgent, /Walgreens first/);
   assert.doesNotMatch(`${readme}\n${envExample}`, /WALGREENS_API_KEY=[^\n]*\|/);
+  assert.match(css, /\.print-format-buttons/);
 });
 
 test('site includes expandable passport photo requirement cards', () => {
@@ -371,6 +380,8 @@ test('browser keeps the OpenAI key on the server and requests agent help in the 
   assert.match(js, /setVariant\('ai', suggestion\.variants\?\.aiSuggestedDataUrl \|\| ''\)/);
   assert.match(js, /setVariantError/);
   assert.match(js, /suggestion\.variantErrors/);
+  assert.match(js, /setLocalPreviewOnlyVariant/);
+  assert.match(js, /Local preview, not export-ready/);
   assert.doesNotMatch(js, /setVariant\('ai', suggestion\.variants\?\.aiSuggestedDataUrl \|\| suggestion\.variants\?\.whiteBackgroundDataUrl/);
   assert.match(js, /applySuggestionButton/);
   assert.match(js, /backgroundResultDataUrl/);
@@ -379,7 +390,9 @@ test('browser keeps the OpenAI key on the server and requests agent help in the 
   assert.match(css, /content:\s*attr\(data-empty-label\)/);
   assert.match(css, /\.variant-card img:not\(\[src\]\)/);
   assert.match(css, /\.variant-card:disabled::before/);
+  assert.match(css, /\.variant-card\.is-preview-only/);
   assert.match(html, /id="applySuggestionButton"/);
+  assert.match(html, /id="unlockAiEditButton"/);
 });
 
 test('deployment docs explain AI environment variables', () => {

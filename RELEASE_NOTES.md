@@ -2,9 +2,18 @@
 
 Every pushed change should add a short entry here with the date, commit, user-facing change, and verification run.
 
+## 2026-05-19
+
+### `pending` - Add paid AI edit shell and local preview labels
+
+- Added a $1.99 AI edit unlock panel and simple AI edit gallery positioning while keeping free crop, local preview, digital download, and 4x6 export available.
+- Local white/background fallback variants are now explicitly labeled **Local preview, not export-ready** and are not silently selected as export-ready AI results.
+- Added export-format buttons for upcoming passport 4x6, wallet grid, and 4x5.3 collage print layouts.
+- Verification: `node --check app.js`, `npm run test:source`, `npm run test:browser`, and `npm test`.
+
 ## 2026-05-18
 
-### `pending` - Add government-style auto-crop decisions
+### `e30bb2d` - Add government-style auto-crop decisions
 
 - Added the State Department photo-tool decision flow: exact 600x600 uploads show **No crop needed**, larger eligible photos get an **Automatic crop** preview, and below-minimum/over-compressed uploads are rejected with a clear reason.
 - Auto-croppable photos now receive an initial square-crop transform while still allowing the user to adjust zoom, pan, and rotation afterward.
