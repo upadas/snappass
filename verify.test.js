@@ -411,17 +411,25 @@ test('deployment docs explain AI environment variables', () => {
 test('deployment package supports Render, Railway, and Vercel', () => {
   const packageJson = JSON.parse(read('package.json'));
   const server = read('server.js');
+  const vercelApi = read('api/[...path].js');
   const renderYaml = read('render.yaml');
   const vercelJson = JSON.parse(read('vercel.json'));
 
   assert.equal(packageJson.scripts.start, 'node server.js');
   assert.equal(packageJson.scripts['test:source'], 'node --test verify.test.js');
   assert.match(server, /process\.env\.PORT/);
+  assert.match(server, /const handleRequest = async/);
+  assert.match(server, /require\.main === module/);
+  assert.match(server, /module\.exports = handleRequest/);
+  assert.match(vercelApi, /require\('\.\.\/server'\)/);
+  assert.match(vercelApi, /handleRequest\(request, response\)/);
   assert.match(renderYaml, /type:\s*web/);
   assert.match(renderYaml, /startCommand:\s*npm start/);
   assert.equal(vercelJson.cleanUrls, true);
+  assert.equal(vercelJson.functions['api/**/*.js'].maxDuration, 60);
+  assert.match(vercelJson.functions['api/**/*.js'].includeFiles, /docs\/photo-specs\/\*\*/);
   assert.match(read('README.md'), /Framework preset: \*\*Other\*\*/);
-  assert.match(read('README.md'), /current `server\.js` API is a long-running Node server/);
+  assert.match(read('README.md'), /routes `\/api\/\*` through `api\/\[\.\.\.path\]\.js`/);
 });
 
 test('package includes Playwright browser verification', () => {

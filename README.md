@@ -78,9 +78,9 @@ Add an entry to `RELEASE_NOTES.md` for every pushed commit. Keep each entry shor
 
 ## Recommended deployment
 
-For the current SnapPass codebase, **Railway is the best first production choice** because it runs the existing Node server without reshaping the API, starts at a predictable low monthly floor, and keeps the OpenAI key server-side. **Render** is a close second and is often the simplest dashboard experience for a small Node web service. **Vercel** is excellent for static frontend speed, but the current `/api/photo/*` Node server would need to be converted to Vercel serverless routes before production. **AWS Amplify** is strong when you want AWS-native scale and controls, but it adds more AWS surface area than this app needs at launch.
+For the current SnapPass codebase, **Render** is the best first production choice because it runs the existing Node server directly, keeps the OpenAI key server-side, and gives straightforward service logs. **Vercel** now works for the static frontend plus `/api/*` serverless routes through the included catch-all function, but heavy AI image edits still need careful timeout and quota monitoring. **Railway** remains a good Node host if the project is already active there. **AWS Amplify** is strong when you want AWS-native scale and controls, but it adds more AWS surface area than this app needs at launch.
 
-Short version: use Railway for launch, Render if you prefer its dashboard, Vercel after converting the API routes, and AWS Amplify when AWS ecosystem integration matters more than simplicity.
+Short version: use Render for the least surprising Node deployment, Vercel for fast static hosting plus serverless API, Railway if the service is already running there, and AWS Amplify when AWS ecosystem integration matters more than simplicity.
 
 ### Render
 
@@ -103,16 +103,16 @@ Railway can deploy this repo with Nixpacks.
 
 ### Vercel
 
-Vercel is a good choice if you want the fastest path for the static SnapPass frontend. For the full AI agent flow, keep the Node server on Railway/Render or convert `server.js` into Vercel serverless functions before production.
+Vercel serves the static files from the repo root and routes `/api/*` through `api/[...path].js`, which reuses the same `server.js` request handler without starting a long-running listener.
 
 1. Import `upadas/snappass`.
 2. Framework preset: **Other**.
 3. Build command: leave empty.
 4. Output directory: `.`.
 5. Install command: `npm install`.
-6. Add `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_IMAGE_MODEL` in **Project Settings > Environment Variables** if you also deploy API routes.
+6. Add `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_IMAGE_MODEL`, and any Walgreens variables in **Project Settings > Environment Variables**.
 7. Add `snappass.me` under **Project Settings > Domains** after DNS is ready.
-8. Production caveat: the current `server.js` API is a long-running Node server. Railway or Render is the cleaner launch target for full AI cleanup until Vercel API routes are split out.
+8. If Vercel shows `FUNCTION_INVOCATION_FAILED`, open **Project > Deployments > Functions Logs** and check the `/api/[...path]` invocation. The function includes `docs/photo-specs/**`, so missing spec files should not be the cause.
 
 ## Domain
 

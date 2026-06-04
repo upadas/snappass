@@ -970,7 +970,7 @@ const resolvePath = (urlPath) => {
   return filePath;
 };
 
-const server = http.createServer(async (request, response) => {
+const handleRequest = async (request, response) => {
   const parsedUrl = new URL(request.url || '/', 'http://localhost');
   const mobileSession = readMobileSession(request.url || '');
   if (mobileSession && request.method === 'POST') {
@@ -1044,8 +1044,15 @@ const server = http.createServer(async (request, response) => {
 
     send(response, 200, data, mimeTypes[path.extname(filePath)] || 'application/octet-stream');
   });
-});
+};
 
-server.listen(port, host, () => {
-  console.log(`SnapPass running on ${host}:${port}`);
-});
+const server = http.createServer(handleRequest);
+
+if (require.main === module) {
+  server.listen(port, host, () => {
+    console.log(`SnapPass running on ${host}:${port}`);
+  });
+}
+
+module.exports = handleRequest;
+module.exports.server = server;
