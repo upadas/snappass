@@ -4,7 +4,7 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 
 ## 2026-05-19
 
-### `22e2bdf` - Add Vercel serverless API entrypoint
+### `c06cf8d` - Add Vercel serverless API entrypoint
 
 - Exported the shared SnapPass request handler without starting a listener when loaded by Vercel.
 - Added a Vercel catch-all API function for `/api/*` and included passport spec markdown files in the serverless bundle.
