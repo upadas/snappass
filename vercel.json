@@ -1,21 +1,85 @@
 {
+  "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60,
-      "includeFiles": "docs/photo-specs/**"
-    }
-  },
-  "headers": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=300"
-        }
-      ]
+      "src": "api/**/*.js",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60,
+        "includeFiles": [
+          "docs/photo-specs/**"
+        ]
+      }
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "mobile-upload.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "app.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=300"
+      }
+    },
+    {
+      "src": "/app.js",
+      "dest": "/app.js",
+      "headers": {
+        "Cache-Control": "public, max-age=300"
+      }
+    },
+    {
+      "src": "/styles.css",
+      "dest": "/styles.css",
+      "headers": {
+        "Cache-Control": "public, max-age=300"
+      }
+    },
+    {
+      "src": "/mobile-upload.html",
+      "dest": "/mobile-upload.html",
+      "headers": {
+        "Cache-Control": "public, max-age=300"
+      }
+    },
+    {
+      "src": "/",
+      "dest": "/index.html",
+      "headers": {
+        "Cache-Control": "public, max-age=300"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "headers": {
+        "Cache-Control": "public, max-age=300"
+      }
     }
   ]
 }

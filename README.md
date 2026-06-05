@@ -103,7 +103,7 @@ Railway can deploy this repo with Nixpacks.
 
 ### Vercel
 
-Vercel serves the static files from the repo root and routes `/api/*` through `api/[...path].js`, which reuses the same `server.js` request handler without starting a long-running listener.
+Vercel serves the static files from the repo root and routes `/api/*` through `api/[...path].js`, which reuses the same `server.js` request handler without starting a long-running listener. The `vercel.json` file declares explicit static routes for `/`, `app.js`, `styles.css`, `mobile-upload.html`, and `assets/**` so the home page is not accidentally invoked as a serverless function.
 
 1. Import `upadas/snappass`.
 2. Framework preset: **Other**.
@@ -112,7 +112,7 @@ Vercel serves the static files from the repo root and routes `/api/*` through `a
 5. Install command: `npm install`.
 6. Add `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_IMAGE_MODEL`, and any Walgreens variables in **Project Settings > Environment Variables**.
 7. Add `snappass.me` under **Project Settings > Domains** after DNS is ready.
-8. If Vercel shows `FUNCTION_INVOCATION_FAILED`, open **Project > Deployments > Functions Logs** and check the `/api/[...path]` invocation. The function includes `docs/photo-specs/**`, so missing spec files should not be the cause.
+8. If Vercel shows `FUNCTION_INVOCATION_FAILED`, open **Project > Deployments > Functions Logs** and check the `/api/[...path]` invocation. If `/` itself shows that error, confirm this repo's `vercel.json` is deployed and that the project root directory points at the SnapPass repo root.
 
 ## Domain
 

@@ -425,11 +425,19 @@ test('deployment package supports Render, Railway, and Vercel', () => {
   assert.match(vercelApi, /handleRequest\(request, response\)/);
   assert.match(renderYaml, /type:\s*web/);
   assert.match(renderYaml, /startCommand:\s*npm start/);
+  assert.equal(vercelJson.version, 2);
   assert.equal(vercelJson.cleanUrls, true);
-  assert.equal(vercelJson.functions['api/**/*.js'].maxDuration, 60);
-  assert.match(vercelJson.functions['api/**/*.js'].includeFiles, /docs\/photo-specs\/\*\*/);
+  assert.ok(vercelJson.builds.some((build) => build.src === 'api/**/*.js' && build.use === '@vercel/node'));
+  assert.ok(vercelJson.builds.some((build) => build.src === 'index.html' && build.use === '@vercel/static'));
+  assert.ok(vercelJson.builds.some((build) => build.src === 'assets/**' && build.use === '@vercel/static'));
+  const apiBuild = vercelJson.builds.find((build) => build.src === 'api/**/*.js');
+  assert.equal(apiBuild.config.maxDuration, 60);
+  assert.ok(apiBuild.config.includeFiles.includes('docs/photo-specs/**'));
+  assert.ok(vercelJson.routes.some((route) => route.src === '/' && route.dest === '/index.html'));
+  assert.ok(vercelJson.routes.some((route) => route.src === '/api/(.*)' && route.dest === '/api/$1'));
   assert.match(read('README.md'), /Framework preset: \*\*Other\*\*/);
   assert.match(read('README.md'), /routes `\/api\/\*` through `api\/\[\.\.\.path\]\.js`/);
+  assert.match(read('README.md'), /home page is not accidentally invoked as a serverless function/);
 });
 
 test('package includes Playwright browser verification', () => {

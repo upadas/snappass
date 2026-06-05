@@ -7,7 +7,7 @@ Every pushed change should add a short entry here with the date, commit, user-fa
 ### `c06cf8d` - Add Vercel serverless API entrypoint
 
 - Exported the shared SnapPass request handler without starting a listener when loaded by Vercel.
-- Added a Vercel catch-all API function for `/api/*` and included passport spec markdown files in the serverless bundle.
+- Added a Vercel catch-all API function for `/api/*`, included passport spec markdown files in the serverless bundle, and declared explicit static routes for the home page and assets.
 - Updated deployment docs so Vercel no longer points users at the long-running Node server path.
 - Verification: `node --check server.js`, `node --check app.js`, `node --check 'api/[...path].js'`, `npm run test:source`, `npm run test:browser`, and `npm test`.
 
